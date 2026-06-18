@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
+import '../bloc/sop_bloc.dart';
+import 'sop_output_screen.dart';
+import '../../../../core/widgets/custom_gradient_header.dart';
 
 class SopListScreen extends StatefulWidget {
   const SopListScreen({super.key});
@@ -9,27 +14,49 @@ class SopListScreen extends StatefulWidget {
   State<SopListScreen> createState() => _SopListScreenState();
 }
 
-class _SopListScreenState extends State<SopListScreen> with SingleTickerProviderStateMixin {
-  late AnimationController _pulseController;
-  late Animation<double> _pulseAnimation;
-
+class _SopListScreenState extends State<SopListScreen> {
   @override
   void initState() {
     super.initState();
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    )..repeat(reverse: true);
-
-    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.08).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
-    );
+    // Dispatch history fetch event
+    context.read<SopBloc>().add(const SopHistoryRequested());
   }
 
-  @override
-  void dispose() {
-    _pulseController.dispose();
-    super.dispose();
+  void _showDeleteConfirmation(BuildContext context, String sopId) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text(
+            'Delete SOP',
+            style: GoogleFonts.manrope(fontWeight: FontWeight.bold),
+          ),
+          content: Text(
+            'Are you sure you want to delete this SOP? This action cannot be undone.',
+            style: GoogleFonts.inter(),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text('Cancel', style: GoogleFonts.inter(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFBA1A1A),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+                context.read<SopBloc>().add(SopDeleteRequested(sopId));
+              },
+              child: Text('Delete', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -42,87 +69,224 @@ class _SopListScreenState extends State<SopListScreen> with SingleTickerProvider
       ),
       child: Scaffold(
         backgroundColor: const Color(0xFFF8F9FA),
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF191C1D), size: 20),
-            onPressed: () => Navigator.pop(context),
-          ),
-          centerTitle: true,
-          title: Text(
-            'SOP History',
-            style: GoogleFonts.manrope(
-              color: const Color(0xFF191C1D),
-              fontWeight: FontWeight.w800,
-              fontSize: 18,
+        body: Column(
+          children: [
+            CustomGradientHeader(
+              title: 'SOP History',
+              subtitle: 'Review and manage your generated SOPs',
+              badgeText: 'All Saved',
+              onBackPressed: () => Navigator.pop(context),
             ),
-          ),
-        ),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                ScaleTransition(
-                  scale: _pulseAnimation,
-                  child: Container(
-                    width: 100,
-                    height: 100,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF024D87).withValues(alpha: 0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Center(
-                      child: Text(
-                        '🚀',
-                        style: TextStyle(fontSize: 48),
+            Expanded(
+              child: BlocConsumer<SopBloc, SopState>(
+                listener: (context, state) {
+                  if (state is SopFailure) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(state.errorMessage),
+                        backgroundColor: const Color(0xFFBA1A1A),
                       ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 32),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE8F5EC),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFFA3CEB0)),
-                  ),
-                  child: Text(
-                    'COMING SOON',
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      color: const Color(0xFF10B981),
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  'আমরা এই ফিচারটি তৈরি করছি',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.hindSiliguri(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF191C1D),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'We are working on this feature',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.inter(
-                    fontSize: 14,
-                    color: const Color(0xFF57534E),
-                  ),
-                ),
-                const SizedBox(height: 60),
-              ],
+                    );
+                  }
+                  if (state is SopDeleteSuccess) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('SOP deleted successfully'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  }
+                },
+                builder: (context, state) {
+                  if (state is SopLoading) {
+                    return const Center(child: CircularProgressIndicator(color: Color(0xFF024D87)));
+                  }
+
+                  if (state is SopSuccess && state.history != null) {
+                    final history = state.history!;
+
+                    return RefreshIndicator(
+                      onRefresh: () async => context.read<SopBloc>().add(const SopHistoryRequested()),
+                      child: ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+                        itemCount: history.isEmpty ? 1 : history.length + 1,
+                        itemBuilder: (context, index) {
+                          if (index == history.length) {
+                            return _buildCreateNewBox(context, '+ Build Another SOP', () => Navigator.pop(context));
+                          }
+                          
+                          final sop = history[index];
+                          final sopNumber = history.length - index;
+                          DateTime? date;
+                          try {
+                            date = DateTime.parse(sop.createdAt);
+                          } catch (_) {}
+
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 16),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.04),
+                                  blurRadius: 20,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(16),
+                              child: IntrinsicHeight(
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    // Left Accent Strip
+                                    Container(
+                                      width: 4,
+                                      color: const Color(0xFF024D87), // Royal Blue
+                                    ),
+                                    Expanded(
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(16.0),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              "Statement of Purpose #$sopNumber",
+                                              style: GoogleFonts.manrope(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16,
+                                                color: const Color(0xFF1A1A1A),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 6),
+                                            // Pill badge
+                                            Align(
+                                              alignment: Alignment.centerLeft,
+                                              child: Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                decoration: BoxDecoration(
+                                                  color: const Color(0xFFE3F2FD), // Light blue
+                                                  borderRadius: BorderRadius.circular(12),
+                                                ),
+                                                child: Text(
+                                                  "Standard Format",
+                                                  style: GoogleFonts.inter(
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: const Color(0xFF1565C0),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 10),
+                                            // Date
+                                            Row(
+                                              children: [
+                                                const Icon(Icons.access_time_rounded, size: 14, color: Colors.grey),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  date != null
+                                                      ? DateFormat('MMM dd, yyyy • hh:mm a').format(date.toLocal())
+                                                      : 'Unknown Date',
+                                                  style: GoogleFonts.inter(
+                                                    fontSize: 12,
+                                                    color: Colors.grey.shade600,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    // Trailing Block
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Material(
+                                            color: const Color(0xFFF0F9FF),
+                                            borderRadius: BorderRadius.circular(8),
+                                            child: InkWell(
+                                              borderRadius: BorderRadius.circular(8),
+                                              onTap: () {
+                                                Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                    builder: (_) => SopOutputScreen(saved: sop),
+                                                  ),
+                                                );
+                                              },
+                                              child: const Padding(
+                                                padding: EdgeInsets.all(8.0),
+                                                child: Icon(Icons.download_rounded, color: Color(0xFF024D87), size: 20),
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Material(
+                                            color: const Color(0xFFFFF0F0),
+                                            borderRadius: BorderRadius.circular(8),
+                                            child: InkWell(
+                                              borderRadius: BorderRadius.circular(8),
+                                              onTap: () => _showDeleteConfirmation(context, sop.id),
+                                              child: const Padding(
+                                                padding: EdgeInsets.all(8.0),
+                                                child: Icon(Icons.delete_outline_rounded, color: Color(0xFFBA1A1A), size: 20),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    );
+                  }
+
+                  // Fallback
+                  return const Center(child: Text('Something went wrong'));
+                },
+              ),
             ),
-          ),
+          ],
+        ),
+      ),
+    );
+  }
+  Widget _buildCreateNewBox(BuildContext context, String text, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF0F9FF),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFF024D87).withValues(alpha: 0.2), width: 1.5, strokeAlign: BorderSide.strokeAlignInside),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.add_circle_outline_rounded, color: Color(0xFF024D87)),
+            const SizedBox(width: 8),
+            Text(
+              text,
+              style: GoogleFonts.manrope(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                color: const Color(0xFF024D87),
+              ),
+            ),
+          ],
         ),
       ),
     );

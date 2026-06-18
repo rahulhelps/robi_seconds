@@ -13,19 +13,7 @@ class SopPdfGenerator {
   /// Entry point — dispatches to the correct template renderer.
   Future<Uint8List> generatePdf(SopModel sop, SopTemplate template, String generatedText) async {
     try {
-      return switch (template.id) {
-        'classic_academic'        => await _buildClassicHarvard(sop, generatedText),
-        'modern_professional'     => await _buildModernMinimal(sop, generatedText),
-        'research_focused'        => await _buildResearchScholar(sop, generatedText),
-        'career_change'           => await _buildCreativeModern(sop, generatedText),
-        'engineering_tech'        => await _buildTechEngineering(sop, generatedText),
-        'business_mba'            => await _buildExecutiveProfessional(sop, generatedText),
-        'medical_health'          => await _buildMedicalProfessional(sop, generatedText),
-        'arts_humanities'         => await _buildElegantClassic(sop, generatedText),
-        'international_student'   => await _buildInternationalGlobal(sop, generatedText),
-        'scholarship_application' => await _buildPremiumScholarship(sop, generatedText),
-        _                         => await _buildClassicHarvard(sop, generatedText),
-      };
+      return await _buildGenericTemplate(template.id, sop, generatedText);
     } catch (e) {
       print('[SopPdfGenerator] Error generating PDF: $e');
       rethrow;
@@ -34,7 +22,6 @@ class SopPdfGenerator {
 
   // ── Helper to render the body paragraphs cleanly ───────────────────────────
   List<pw.Widget> _renderBody(String text, pw.TextStyle style) {
-    // Splits by double newline to form paragraphs
     final paragraphs = text.split('\n\n');
     return paragraphs.map((p) => pw.Padding(
       padding: const pw.EdgeInsets.only(bottom: 12),
@@ -42,467 +29,138 @@ class SopPdfGenerator {
     )).toList();
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // Template 1 — Classic Harvard Style
-  // ═══════════════════════════════════════════════════════════════════════════
-  Future<Uint8List> _buildClassicHarvard(SopModel sop, String text) async {
+  // ── Generic Template Builder matching SopOutputScreen styles ───────────────
+  Future<Uint8List> _buildGenericTemplate(String tplId, SopModel sop, String text) async {
     final pdf = pw.Document();
-    
+
+    pw.Font bodyFont = pw.Font.helvetica();
+    pw.Font headerFont = pw.Font.helveticaBold();
+    double bodyFontSize = 11;
+    double headerFontSize = 18;
+    PdfColor bodyColor = PdfColor.fromHex('#1A1A1A');
+    PdfColor headerColor = PdfColor.fromHex('#1A1A1A');
+    PdfColor footerColor = PdfColors.grey;
+    PdfColor bgColor = PdfColors.white;
+    pw.BoxBorder? border;
+    pw.EdgeInsets margin = const pw.EdgeInsets.symmetric(horizontal: 54, vertical: 54);
+    bool isItalicHeader = false;
+
+    switch (tplId) {
+      case 'classic_academic':
+        bodyFont = pw.Font.times();
+        headerFont = pw.Font.timesBold();
+        break;
+      case 'modern_professional':
+        bodyFontSize = 12;
+        headerFont = pw.Font.helveticaBold();
+        headerFontSize = 20;
+        headerColor = PdfColor.fromHex('#024D87');
+        border = pw.Border(left: pw.BorderSide(color: PdfColor.fromHex('#024D87'), width: 4));
+        break;
+      case 'research_focused':
+        bodyFont = pw.Font.courier();
+        headerFont = pw.Font.courierBold();
+        headerFontSize = 16;
+        headerColor = PdfColor.fromHex('#1E3A8A');
+        border = pw.Border.all(color: PdfColor.fromHex('#EEEEEE'));
+        break;
+      case 'career_change':
+        bodyFontSize = 12;
+        headerColor = PdfColor.fromHex('#7C3AED');
+        bgColor = PdfColor.fromHex('#FAF5FF');
+        break;
+      case 'engineering_tech':
+        bodyFont = pw.Font.courier();
+        headerFont = pw.Font.courierBold();
+        headerFontSize = 15;
+        headerColor = PdfColor.fromHex('#10B981');
+        bgColor = PdfColor.fromHex('#F9FAFB');
+        border = pw.Border.all(color: PdfColor.fromHex('#E5E7EB'));
+        break;
+      case 'business_mba':
+        bodyFont = pw.Font.times();
+        headerFont = pw.Font.timesBold();
+        headerFontSize = 20;
+        headerColor = PdfColor.fromHex('#111827');
+        margin = const pw.EdgeInsets.symmetric(horizontal: 54, vertical: 64);
+        break;
+      case 'medical_health':
+        bodyFont = pw.Font.times();
+        headerFont = pw.Font.timesBold();
+        headerFontSize = 19;
+        headerColor = PdfColor.fromHex('#0D9488');
+        border = pw.Border(top: pw.BorderSide(color: PdfColor.fromHex('#0D9488'), width: 6));
+        break;
+      case 'arts_humanities':
+        bodyFont = pw.Font.times();
+        headerFont = pw.Font.timesBoldItalic();
+        headerFontSize = 22;
+        headerColor = PdfColor.fromHex('#78350F');
+        isItalicHeader = true;
+        break;
+      case 'international_student':
+        bodyFontSize = 12;
+        headerFontSize = 18;
+        headerColor = PdfColor.fromHex('#0369A1');
+        bgColor = PdfColor.fromHex('#F0F9FF');
+        break;
+      case 'scholarship_application':
+        bodyFont = pw.Font.times();
+        headerFont = pw.Font.timesBold();
+        headerFontSize = 19;
+        headerColor = PdfColor.fromHex('#0F766E');
+        border = pw.Border.all(color: PdfColor.fromHex('#0F766E'), width: 1.5);
+        break;
+      default:
+        break;
+    }
+
+    final headerText = 'Statement of Purpose';
+    final footerText = 'Sincerely,\n${sop.name}';
+
     pdf.addPage(
       pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(0),
-        header: (context) => pw.Column(
-          children: [
-            pw.Container(
-              width: double.infinity,
-              color: PdfColor.fromHex('#0D1B2A'),
-              padding: const pw.EdgeInsets.symmetric(vertical: 24, horizontal: 40),
-              child: pw.Column(
-                children: [
-                  pw.Text(
-                    'STATEMENT OF PURPOSE',
-                    style: pw.TextStyle(
-                      font: pw.Font.timesBold(),
-                      color: PdfColors.white,
-                      fontSize: 22,
-                      letterSpacing: 2,
-                    ),
-                  ),
-                  pw.SizedBox(height: 6),
-                  pw.Text(
-                    sop.name.toUpperCase(),
-                    style: pw.TextStyle(
-                      font: pw.Font.times(),
-                      color: PdfColors.white,
-                      fontSize: 14,
-                      letterSpacing: 1,
-                    ),
-                  ),
-                ],
+        pageTheme: pw.PageTheme(
+          pageFormat: PdfPageFormat.a4,
+          margin: margin,
+          buildBackground: (context) => pw.FullPage(
+            ignoreMargins: true,
+            child: pw.Container(
+              margin: const pw.EdgeInsets.all(20), // Outer paper margin
+              decoration: pw.BoxDecoration(
+                color: bgColor,
+                border: border,
               ),
             ),
-            pw.Container(
-              width: double.infinity,
-              height: 3,
-              color: PdfColor.fromHex('#D4A017'),
-            ),
-          ],
+          ),
         ),
         build: (context) => [
-          pw.Padding(
-            padding: const pw.EdgeInsets.all(40),
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: _renderBody(
-                text,
-                pw.TextStyle(font: pw.Font.times(), fontSize: 11, lineSpacing: 4),
-              ),
+          pw.Text(
+            headerText,
+            style: pw.TextStyle(
+              font: headerFont,
+              fontSize: headerFontSize,
+              color: headerColor,
+              fontWeight: isItalicHeader ? null : pw.FontWeight.bold,
+              fontStyle: isItalicHeader ? pw.FontStyle.italic : null,
+            ),
+          ),
+          pw.SizedBox(height: 32),
+          ..._renderBody(text, pw.TextStyle(font: bodyFont, fontSize: bodyFontSize, color: bodyColor, lineSpacing: 4)),
+          pw.SizedBox(height: 32),
+          pw.Text(
+            footerText,
+            style: pw.TextStyle(
+              font: bodyFont,
+              fontSize: bodyFontSize,
+              color: footerColor,
+              fontStyle: pw.FontStyle.italic,
             ),
           ),
         ],
       ),
     );
-    return pdf.save();
-  }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // Template 2 — Modern Minimal
-  // ═══════════════════════════════════════════════════════════════════════════
-  Future<Uint8List> _buildModernMinimal(SopModel sop, String text) async {
-    final pdf = pw.Document();
-
-    pdf.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(0),
-        build: (context) => [
-          pw.Row(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              // Left blue bar
-              pw.Container(
-                width: 12,
-                height: 842, // Approx A4 height
-                color: PdfColor.fromHex('#024D87'),
-              ),
-              pw.Expanded(
-                child: pw.Padding(
-                  padding: const pw.EdgeInsets.fromLTRB(30, 40, 40, 40),
-                  child: pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: [
-                      pw.Container(
-                        padding: const pw.EdgeInsets.only(bottom: 10),
-                        decoration: pw.BoxDecoration(
-                          border: pw.Border(bottom: pw.BorderSide(color: PdfColor.fromHex('#024D87'), width: 2)),
-                        ),
-                        child: pw.Text(
-                          'STATEMENT OF PURPOSE',
-                          style: pw.TextStyle(font: pw.Font.helveticaBold(), fontSize: 24, color: PdfColor.fromHex('#024D87')),
-                        ),
-                      ),
-                      pw.SizedBox(height: 20),
-                      ..._renderBody(text, pw.TextStyle(font: pw.Font.helvetica(), fontSize: 11, color: PdfColor.fromHex('#333333'), lineSpacing: 3)),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-    return pdf.save();
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // Template 3 — Research Scholar
-  // ═══════════════════════════════════════════════════════════════════════════
-  Future<Uint8List> _buildResearchScholar(SopModel sop, String text) async {
-    final pdf = pw.Document();
-
-    pdf.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(40),
-        header: (context) => pw.Column(
-          children: [
-            pw.Center(
-              child: pw.Text(
-                'STATEMENT OF PURPOSE',
-                style: pw.TextStyle(font: pw.Font.timesBold(), fontSize: 18, color: PdfColor.fromHex('#1E3A8A')),
-              ),
-            ),
-            pw.SizedBox(height: 10),
-            pw.Divider(color: PdfColor.fromHex('#1E3A8A'), thickness: 1.5),
-            pw.Divider(color: PdfColor.fromHex('#1E3A8A'), thickness: 0.5),
-            pw.SizedBox(height: 20),
-          ],
-        ),
-        build: (context) => [
-          pw.Container(
-            padding: const pw.EdgeInsets.all(12),
-            decoration: pw.BoxDecoration(
-              color: PdfColor.fromHex('#E8EDF5'),
-              border: pw.Border.all(color: PdfColor.fromHex('#B0BFDB')),
-            ),
-            child: pw.Text(
-              'Prepared by: ${sop.name} | Program: ${sop.programName}',
-              style: pw.TextStyle(font: pw.Font.timesItalic(), fontSize: 10),
-            ),
-          ),
-          pw.SizedBox(height: 24),
-          ..._renderBody(text, pw.TextStyle(font: pw.Font.times(), fontSize: 11, lineSpacing: 2)),
-        ],
-      ),
-    );
-    return pdf.save();
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // Template 4 — Creative Modern (Career Change)
-  // ═══════════════════════════════════════════════════════════════════════════
-  Future<Uint8List> _buildCreativeModern(SopModel sop, String text) async {
-    final pdf = pw.Document();
-
-    pdf.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(0),
-        header: (context) => pw.Column(
-          children: [
-            pw.Container(
-              color: PdfColor.fromHex('#013A65'),
-              padding: const pw.EdgeInsets.all(30),
-              width: double.infinity,
-              child: pw.Text(
-                'Statement of Purpose',
-                style: pw.TextStyle(font: pw.Font.helveticaBold(), fontSize: 26, color: PdfColors.white),
-              ),
-            ),
-            pw.Container(height: 4, color: PdfColor.fromHex('#51B1E1')),
-          ],
-        ),
-        build: (context) => [
-          pw.Padding(
-            padding: const pw.EdgeInsets.all(40),
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: _renderBody(text, pw.TextStyle(font: pw.Font.helvetica(), fontSize: 11, color: PdfColor.fromHex('#2D3748'), lineSpacing: 4)),
-            ),
-          ),
-        ],
-      ),
-    );
-    return pdf.save();
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // Template 5 — Tech / Engineering
-  // ═══════════════════════════════════════════════════════════════════════════
-  Future<Uint8List> _buildTechEngineering(SopModel sop, String text) async {
-    final pdf = pw.Document();
-
-    pdf.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(0),
-        header: (context) => pw.Container(
-          color: PdfColor.fromHex('#F3F4F6'),
-          padding: const pw.EdgeInsets.all(30),
-          width: double.infinity,
-          child: pw.Row(
-            children: [
-              pw.Container(width: 4, height: 30, color: PdfColor.fromHex('#10B981')),
-              pw.SizedBox(width: 12),
-              pw.Text(
-                'STATEMENT OF PURPOSE',
-                style: pw.TextStyle(font: pw.Font.courierBold(), fontSize: 20, color: PdfColor.fromHex('#111827')),
-              ),
-            ],
-          ),
-        ),
-        build: (context) => [
-          pw.Padding(
-            padding: const pw.EdgeInsets.all(40),
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: _renderBody(text, pw.TextStyle(font: pw.Font.courier(), fontSize: 10, lineSpacing: 4)),
-            ),
-          ),
-        ],
-      ),
-    );
-    return pdf.save();
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // Template 6 — Executive Professional (Business/MBA)
-  // ═══════════════════════════════════════════════════════════════════════════
-  Future<Uint8List> _buildExecutiveProfessional(SopModel sop, String text) async {
-    final pdf = pw.Document();
-
-    pdf.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(0),
-        header: (context) => pw.Container(
-          color: PdfColor.fromHex('#2C2C2C'),
-          padding: const pw.EdgeInsets.symmetric(vertical: 24, horizontal: 40),
-          width: double.infinity,
-          child: pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.Text(
-                'STATEMENT OF PURPOSE',
-                style: pw.TextStyle(font: pw.Font.timesBold(), fontSize: 22, color: PdfColors.white, letterSpacing: 1.5),
-              ),
-              pw.SizedBox(height: 12),
-              pw.Row(
-                children: [
-                  pw.Expanded(child: pw.Container(height: 1, color: PdfColors.white)),
-                ],
-              ),
-            ],
-          ),
-        ),
-        build: (context) => [
-          pw.Padding(
-            padding: const pw.EdgeInsets.all(40),
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: _renderBody(text, pw.TextStyle(font: pw.Font.times(), fontSize: 12, lineSpacing: 4)),
-            ),
-          ),
-        ],
-      ),
-    );
-    return pdf.save();
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // Template 7 — Elegant Classic (Arts)
-  // ═══════════════════════════════════════════════════════════════════════════
-  Future<Uint8List> _buildElegantClassic(SopModel sop, String text) async {
-    final pdf = pw.Document();
-
-    pdf.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(40),
-        header: (context) => pw.Column(
-          children: [
-            pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Container(width: 40, height: 1.5, color: PdfColor.fromHex('#78350F')),
-                pw.Container(width: 40, height: 1.5, color: PdfColor.fromHex('#78350F')),
-              ],
-            ),
-            pw.SizedBox(height: 16),
-            pw.Center(
-              child: pw.Text(
-                'Statement of Purpose',
-                style: pw.TextStyle(font: pw.Font.timesBoldItalic(), fontSize: 26, color: PdfColor.fromHex('#78350F')),
-              ),
-            ),
-            pw.SizedBox(height: 8),
-            pw.Center(
-              child: pw.Container(width: 100, height: 1, color: PdfColor.fromHex('#78350F')),
-            ),
-            pw.SizedBox(height: 30),
-          ],
-        ),
-        build: (context) => _renderBody(text, pw.TextStyle(font: pw.Font.times(), fontSize: 12, lineSpacing: 5)),
-      ),
-    );
-    return pdf.save();
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // Template 8 — Medical Professional
-  // ═══════════════════════════════════════════════════════════════════════════
-  Future<Uint8List> _buildMedicalProfessional(SopModel sop, String text) async {
-    final pdf = pw.Document();
-
-    pdf.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(0),
-        header: (context) => pw.Column(
-          children: [
-            pw.Container(height: 8, color: PdfColor.fromHex('#0D9488')),
-            pw.Container(
-              color: PdfColor.fromHex('#F0FDF4'),
-              padding: const pw.EdgeInsets.all(30),
-              width: double.infinity,
-              child: pw.Text(
-                'STATEMENT OF PURPOSE',
-                style: pw.TextStyle(font: pw.Font.helveticaBold(), fontSize: 20, color: PdfColor.fromHex('#0D9488')),
-              ),
-            ),
-            pw.Container(height: 2, color: PdfColor.fromHex('#0D9488')),
-          ],
-        ),
-        build: (context) => [
-          pw.Padding(
-            padding: const pw.EdgeInsets.all(40),
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: _renderBody(text, pw.TextStyle(font: pw.Font.helvetica(), fontSize: 11, lineSpacing: 4)),
-            ),
-          ),
-        ],
-      ),
-    );
-    return pdf.save();
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // Template 9 — International / Global
-  // ═══════════════════════════════════════════════════════════════════════════
-  Future<Uint8List> _buildInternationalGlobal(SopModel sop, String text) async {
-    final pdf = pw.Document();
-
-    pdf.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(0),
-        header: (context) => pw.Column(
-          children: [
-            pw.Row(
-              children: [
-                pw.Expanded(child: pw.Container(height: 8, color: PdfColor.fromHex('#0369A1'))),
-                pw.Expanded(child: pw.Container(height: 8, color: PdfColors.white)),
-                pw.Expanded(child: pw.Container(height: 8, color: PdfColor.fromHex('#DC2626'))),
-              ],
-            ),
-            pw.Container(
-              color: PdfColor.fromHex('#F0F9FF'),
-              padding: const pw.EdgeInsets.symmetric(vertical: 24, horizontal: 40),
-              width: double.infinity,
-              child: pw.Text(
-                'STATEMENT OF PURPOSE',
-                style: pw.TextStyle(font: pw.Font.helveticaBold(), fontSize: 22, color: PdfColor.fromHex('#0369A1')),
-              ),
-            ),
-            pw.Container(height: 1, color: PdfColor.fromHex('#0369A1')),
-          ],
-        ),
-        build: (context) => [
-          pw.Padding(
-            padding: const pw.EdgeInsets.all(40),
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: _renderBody(text, pw.TextStyle(font: pw.Font.helvetica(), fontSize: 11, lineSpacing: 3)),
-            ),
-          ),
-        ],
-      ),
-    );
-    return pdf.save();
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // Template 10 — Premium Scholarship
-  // ═══════════════════════════════════════════════════════════════════════════
-  Future<Uint8List> _buildPremiumScholarship(SopModel sop, String text) async {
-    final pdf = pw.Document();
-
-    pdf.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(0),
-        header: (context) => pw.Column(
-          children: [
-            pw.Container(height: 4, color: PdfColor.fromHex('#D4A017')),
-            pw.Container(
-              color: PdfColor.fromHex('#0D1B2A'),
-              padding: const pw.EdgeInsets.symmetric(vertical: 30, horizontal: 40),
-              child: pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: [
-                      pw.Text(
-                        'STATEMENT OF PURPOSE',
-                        style: pw.TextStyle(font: pw.Font.timesBold(), fontSize: 22, color: PdfColors.white, letterSpacing: 1.5),
-                      ),
-                      pw.SizedBox(height: 6),
-                      pw.Text(
-                        'SCHOLARSHIP APPLICATION',
-                        style: pw.TextStyle(font: pw.Font.times(), fontSize: 12, color: PdfColor.fromHex('#D4A017'), letterSpacing: 2),
-                      ),
-                    ],
-                  ),
-                  // Decorative emblem circle
-                  pw.Container(
-                    width: 40,
-                    height: 40,
-                    decoration: pw.BoxDecoration(
-                      shape: pw.BoxShape.circle,
-                      border: pw.Border.all(color: PdfColor.fromHex('#D4A017'), width: 2),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            pw.Container(height: 2, color: PdfColor.fromHex('#D4A017')),
-          ],
-        ),
-        build: (context) => [
-          pw.Padding(
-            padding: const pw.EdgeInsets.all(40),
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: _renderBody(text, pw.TextStyle(font: pw.Font.times(), fontSize: 11, lineSpacing: 4)),
-            ),
-          ),
-        ],
-      ),
-    );
     return pdf.save();
   }
 }

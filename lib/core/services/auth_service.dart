@@ -188,6 +188,18 @@ class AuthService {
     return result;
   }
 
+  /// Makes an authenticated DELETE request to [path].
+  /// Automatically retries once after refreshing the token on a 401.
+  static Future<Map<String, dynamic>> authenticatedDelete(String path) async {
+    final result = await _doDelete(path);
+    if (result['__status'] == 401) {
+      final refreshed = await refreshToken();
+      if (!refreshed) throw 'Session expired. Please log in again.';
+      return _doDelete(path);
+    }
+    return result;
+  }
+
   /// Makes an authenticated GET request to [path] and returns the raw response.
   /// Useful for binary downloads. Automatically retries once on 401.
   static Future<http.Response> authenticatedGetRaw(String url) async {
@@ -296,6 +308,28 @@ class AuthService {
           body: jsonEncode(body),
         )
         .timeout(const Duration(seconds: 15));
+
+    print('[AuthService] RESPONSE STATUS: ${response.statusCode}');
+    print('[AuthService] RESPONSE BODY:\n${response.body}');
+
+    if (response.statusCode == 401) return {'__status': 401};
+    return _parseResponse(response);
+  }
+
+  static Future<Map<String, dynamic>> _doDelete(String path) async {
+    final token = await TokenManager.getAccessToken();
+    print('[AuthService] DELETE token: $token');
+    final uri = Uri.parse('$_baseUrl$path');
+
+    print('[AuthService] DELETE $uri');
+
+    final response = await http.delete(
+      uri,
+      headers: {
+        'Content-Type': 'application/json',
+        if (token != null) 'Authorization': 'Bearer $token',
+      },
+    ).timeout(const Duration(seconds: 15));
 
     print('[AuthService] RESPONSE STATUS: ${response.statusCode}');
     print('[AuthService] RESPONSE BODY:\n${response.body}');

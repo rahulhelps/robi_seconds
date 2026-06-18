@@ -5,7 +5,7 @@ import '../bloc/template_gallery_bloc.dart';
 import '../bloc/cv_bloc.dart';
 import '../widgets/gallery_hero_section.dart';
 import '../widgets/gallery_filters.dart';
-import '../widgets/template_gallery_top_bar.dart';
+import '../../../../core/widgets/custom_gradient_header.dart';
 import '../widgets/template_grid.dart';
 import '../widgets/career_insights_callout.dart';
 import '../../domain/cv_repository.dart';
@@ -39,10 +39,13 @@ class _TemplateGalleryView extends StatelessWidget {
       ),
       child: Scaffold(
         backgroundColor: const Color(0xFFF8F9FA),
-        body: SafeArea(
-        child: Column(
+        body: Column(
           children: [
-            const TemplateGalleryTopBar(),
+            const CustomGradientHeader(
+              title: 'Choose Your Layout',
+              subtitle: 'Select a professional template for your CV',
+              badgeText: '12 Templates',
+            ),
             Expanded(
               child: BlocListener<TemplateGalleryBloc, TemplateGalleryState>(
                 listener: (context, state) {
@@ -114,7 +117,6 @@ class _TemplateGalleryView extends StatelessWidget {
             ),
           ],
         ),
-      ),
     ),
     );
   }

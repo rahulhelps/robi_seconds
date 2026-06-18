@@ -10,13 +10,14 @@ import '../../../../core/network/bloc/connectivity_bloc.dart';
 import '../../../../core/network/bloc/connectivity_state.dart';
 import '../../../profile/presentation/bloc/profile_bloc.dart';
 import '../../../packages/presentation/bloc/packages_bloc.dart';
+import '../../../sop/presentation/bloc/sop_bloc.dart';
 import '../bloc/dashboard_bloc.dart';
 import '../widgets/action_cards.dart';
 import '../widgets/app_top_bar.dart';
 import '../widgets/dashboard_bottom_nav_bar.dart';
 import '../widgets/profile_quick_card.dart';
 import '../widgets/quick_stats_grid.dart';
-import '../widgets/recent_activity_list.dart';
+
 
 class QuickCVDashboardScreen extends StatelessWidget {
   const QuickCVDashboardScreen({super.key});
@@ -39,6 +40,7 @@ class _DashboardView extends StatelessWidget {
           // Auto retry last failed API calls or reload data generally
           context.read<ProfileBloc>().add(const FetchProfile());
           context.read<PackagesBloc>().add(const FetchPackages());
+          context.read<SopBloc>().add(const SopHistoryRequested());
         }
       },
       child: BlocBuilder<DashboardBloc, DashboardState>(
@@ -102,6 +104,7 @@ class _HomeTab extends StatelessWidget {
               isOffline: isOffline,
               onRetry: () {
                 context.read<ProfileBloc>().add(const FetchProfile());
+                context.read<SopBloc>().add(const SopHistoryRequested());
               },
             ),
             Expanded(

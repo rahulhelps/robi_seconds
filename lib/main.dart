@@ -27,6 +27,8 @@ import 'features/sop/domain/sop_repository.dart';
 import 'features/sop/data/sop_repository_impl.dart';
 import 'features/sop/data/sop_datasource.dart';
 import 'features/sop/presentation/screens/sop_template_screen.dart';
+import 'features/sop/presentation/bloc/sop_bloc.dart';
+import 'features/sop/data/sop_pdf_generator.dart';
 
 // BLoCs
 import 'features/auth/presentation/bloc/auth_bloc.dart';
@@ -91,6 +93,12 @@ class MyApp extends StatelessWidget {
           ),
           BlocProvider(
             create: (context) => ConnectivityBloc(),
+          ),
+          BlocProvider(
+            create: (context) => SopBloc(
+              context.read<SopRepository>(),
+              SopPdfGenerator(),
+            )..add(const SopHistoryRequested()),
           ),
         ],
         child: BlocListener<AuthBloc, AuthState>(

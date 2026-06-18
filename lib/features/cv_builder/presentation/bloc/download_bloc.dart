@@ -1,8 +1,6 @@
-import 'dart:io';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/services.dart';
-import 'package:http/http.dart' as http;
 import '../../../../core/services/download_service.dart';
 
 abstract class DownloadEvent extends Equatable {
@@ -15,8 +13,16 @@ class StartDownload extends DownloadEvent {
   final Uint8List? existingBytes;
   final String? networkUrl;
   final String? bearerToken;
+  final String baseFileName;
+  final String subDirectory;
 
-  const StartDownload({this.existingBytes, this.networkUrl, this.bearerToken});
+  const StartDownload({
+    this.existingBytes,
+    this.networkUrl,
+    this.bearerToken,
+    this.baseFileName = 'QuickCV_2026',
+    this.subDirectory = 'QuickCV Pro',
+  });
 }
 
 abstract class DownloadState extends Equatable {
@@ -55,9 +61,10 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadState> {
       final path = await DownloadService.downloadAndSaveFile(
         url: event.networkUrl,
         existingBytes: event.existingBytes,
-        baseFileName: 'QuickCV_2026',
+        baseFileName: event.baseFileName,
         fileExtension: 'pdf',
         bearerToken: event.bearerToken,
+        subDirectory: event.subDirectory,
       );
 
       // 5. Emit Success

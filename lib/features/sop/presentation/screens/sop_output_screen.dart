@@ -1,36 +1,100 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:open_file/open_file.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import '../bloc/sop_bloc.dart';
+import '../../../../core/services/download_service.dart';
 import '../../domain/sop_model.dart';
+import '../bloc/sop_bloc.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 class SopOutputScreen extends StatefulWidget {
   final SavedSop saved;
   final Uint8List? pdfBytes;
+  final SopModel? model;
+  final String? generatedPayload;
 
-  const SopOutputScreen({super.key, required this.saved, this.pdfBytes});
+  const SopOutputScreen({super.key, required this.saved, this.pdfBytes, this.model, this.generatedPayload});
 
   @override
   State<SopOutputScreen> createState() => _SopOutputScreenState();
 }
 
 class _SopOutputScreenState extends State<SopOutputScreen> {
+  bool _isDownloading = false;
 
 
   String get _fullText =>
-      '${widget.saved.header}\n\n${widget.saved.body}\n\n${widget.saved.footer}';
+      widget.generatedPayload ?? '${widget.saved.header}\n\n${widget.saved.body}\n\n${widget.saved.footer}';
 
-  void _download() {
-    if (widget.pdfBytes == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('PDF data not available.')),
+  Future<void> _download() async {
+    setState(() => _isDownloading = true);
+    try {
+      final bytes = widget.pdfBytes ?? Uint8List.fromList(utf8.encode(_fullText));
+      final fileExtension = widget.pdfBytes != null ? 'pdf' : 'txt';
+      final savedPath = await DownloadService.downloadAndSaveFile(
+        existingBytes: bytes,
+        baseFileName: 'StatementOfPurpose',
+        fileExtension: fileExtension,
       );
-      return;
+
+      print('[SopOutputScreen] Saved: $savedPath');
+
+      if (mounted) {
+        HapticFeedback.mediumImpact();
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(
+              content: Text('Saved to: $savedPath', style: GoogleFonts.inter(color: Colors.white, fontSize: 13)),
+              action: SnackBarAction(
+                label: 'OPEN',
+                textColor: Colors.white,
+                onPressed: () {
+                  try {
+                    OpenFile.open(savedPath);
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Cannot open file')),
+                    );
+                  }
+                },
+              ),
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: const Color(0xFF024D87),
+              duration: const Duration(seconds: 5),
+              margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.error_outline_rounded, color: Colors.white, size: 18),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text('Download failed: $e',
+                        style: GoogleFonts.inter(color: Colors.white, fontSize: 13),
+                        overflow: TextOverflow.ellipsis),
+                  ),
+                ],
+              ),
+              backgroundColor: const Color(0xFFBA1A1A),
+              behavior: SnackBarBehavior.floating,
+              margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          );
+      }
+    } finally {
+      if (mounted) setState(() => _isDownloading = false);
     }
-    
-    context.read<SopBloc>().add(SopDownloadRequested(widget.pdfBytes!));
   }
 
   void _share() {
@@ -155,68 +219,13 @@ class _SopOutputScreenState extends State<SopOutputScreen> {
         padding = const EdgeInsets.symmetric(horizontal: 32, vertical: 48);
     }
 
-    return BlocConsumer<SopBloc, SopState>(
-      listener: (context, state) {
-        if (state is SopDownloadSuccess) {
-          HapticFeedback.mediumImpact();
-          ScaffoldMessenger.of(context)
-            ..hideCurrentSnackBar()
-            ..showSnackBar(
-              SnackBar(
-                content: Text('Saved to: ${state.path}', style: GoogleFonts.inter(color: Colors.white, fontSize: 13)),
-                action: SnackBarAction(
-                  label: 'OPEN',
-                  textColor: Colors.white,
-                  onPressed: () {
-                    try {
-                      OpenFile.open(state.path);
-                    } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Cannot open file')),
-                      );
-                    }
-                  },
-                ),
-                behavior: SnackBarBehavior.floating,
-                backgroundColor: const Color(0xFF024D87),
-                duration: const Duration(seconds: 5),
-                margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            );
-        } else if (state is SopFailure) {
-          ScaffoldMessenger.of(context)
-            ..hideCurrentSnackBar()
-            ..showSnackBar(
-              SnackBar(
-                content: Row(
-                  children: [
-                    const Icon(Icons.error_outline_rounded, color: Colors.white, size: 18),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text('Download failed: ${state.errorMessage}',
-                          style: GoogleFonts.inter(color: Colors.white, fontSize: 13),
-                          overflow: TextOverflow.ellipsis),
-                    ),
-                  ],
-                ),
-                backgroundColor: const Color(0xFFBA1A1A),
-                behavior: SnackBarBehavior.floating,
-                margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            );
-        }
-      },
-      builder: (context, state) {
-        final _isDownloading = state is SopDownloadLoading;
-        return AnnotatedRegion<SystemUiOverlayStyle>(
-          value: const SystemUiOverlayStyle(
-            statusBarColor: Colors.transparent,
-            statusBarIconBrightness: Brightness.dark,
-            statusBarBrightness: Brightness.light,
-          ),
-          child: Scaffold(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+      ),
+      child: Scaffold(
         backgroundColor: const Color(0xFFF8F9FA),
         appBar: AppBar(
           backgroundColor: const Color(0xFF191C1D),
@@ -281,25 +290,53 @@ class _SopOutputScreenState extends State<SopOutputScreen> {
                   ],
                 ),
                 padding: padding,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SelectableText(
-                      widget.saved.header,
-                      style: headerStyle,
-                    ),
-                    const SizedBox(height: 32),
-                    SelectableText(
-                      widget.saved.body,
-                      style: bodyStyle,
-                      textAlign: TextAlign.justify,
-                    ),
-                    const SizedBox(height: 32),
-                    SelectableText(
-                      widget.saved.footer,
-                      style: footerStyle,
-                    ),
-                  ],
+                child: BlocBuilder<SopBloc, SopState>(
+                  builder: (context, state) {
+                    final currentModel = widget.model ?? 
+                        (state is SopSuccess ? state.model : null) ?? 
+                        const SopModel(name: '', programName: '', universityName: '', country: '');
+                    
+                    final hasBackendText = widget.saved.header.isNotEmpty || widget.saved.body.isNotEmpty;
+
+                    final String displayHeader = hasBackendText ? widget.saved.header : 'Statement of Purpose';
+                    final String displayFooter = hasBackendText ? widget.saved.footer : 'Sincerely,\n${currentModel.name}';
+                    
+                    String displayBody = widget.saved.body;
+                    if (!hasBackendText) {
+                      displayBody = '''I am writing to express my profound interest in the ${currentModel.programName} program at ${currentModel.universityName}, ${currentModel.country}. With a strong academic foundation and a clear vision for my future, I am confident that this program aligns perfectly with my career aspirations.
+
+${currentModel.academicBackground != null ? 'My academic journey in ${currentModel.academicBackground} ' : 'My academic journey '}${currentModel.gpa != null ? 'with a GPA of ${currentModel.gpa} ' : ''}has equipped me with the analytical and technical skills necessary to thrive in a rigorous academic environment. 
+
+${currentModel.workExperience != null ? 'Professionally, my experience in ${currentModel.workExperience} has further solidified my practical understanding and ability to apply theoretical concepts to real-world challenges. ' : ''}${currentModel.researchExperience != null ? 'Additionally, my research on ${currentModel.researchExperience} highlights my commitment to advancing knowledge in this field. ' : ''}
+
+${currentModel.whyThisUniversity != null ? 'I chose ${currentModel.universityName} because of ${currentModel.whyThisUniversity}. ' : 'The esteemed faculty, state-of-the-art facilities, and diverse community at ${currentModel.universityName} make it the ideal place for me to pursue my studies. '}
+
+Upon completing the ${currentModel.programName} program, my goal is to ${currentModel.goals ?? 'contribute meaningfully to the industry and society'}. ${currentModel.skills != null ? 'My proficiency in ${currentModel.skills} will be instrumental in achieving these objectives. ' : ''}
+
+I look forward to the opportunity to contribute to and grow within your esteemed institution.''';
+                    }
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SelectableText(
+                          displayHeader,
+                          style: headerStyle,
+                        ),
+                        const SizedBox(height: 32),
+                        SelectableText(
+                          displayBody,
+                          style: bodyStyle,
+                          textAlign: TextAlign.justify,
+                        ),
+                        const SizedBox(height: 32),
+                        SelectableText(
+                          displayFooter,
+                          style: footerStyle,
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ),
             ),
@@ -345,7 +382,7 @@ class _SopOutputScreenState extends State<SopOutputScreen> {
                           )
                         : const Icon(Icons.picture_as_pdf_rounded, size: 18),
                     label: Text(
-                      _isDownloading ? 'Saving…' : 'Download PDF',
+                      _isDownloading ? 'Saving…' : 'Download',
                       style: GoogleFonts.inter(fontWeight: FontWeight.bold),
                     ),
                     style: ElevatedButton.styleFrom(
@@ -363,8 +400,6 @@ class _SopOutputScreenState extends State<SopOutputScreen> {
           ),
         ),
       ),
-    );
-      },
     );
   }
 }

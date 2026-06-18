@@ -199,14 +199,11 @@ class _ProfileField extends StatelessWidget {
   final String? hint;
   final int maxLines;
 
-  final String? errorText;
-
   const _ProfileField({
     required this.label,
     required this.field,
     this.hint,
     this.maxLines = 1,
-    this.errorText,
   });
 
   @override
@@ -215,7 +212,6 @@ class _ProfileField extends StatelessWidget {
       label: label,
       hint: hint ?? 'Enter $label',
       maxLines: maxLines,
-      errorText: errorText,
       onChanged: (v) =>
           context.read<CvBloc>().add(CvUpdatePersonalProfile(field, v)),
     );

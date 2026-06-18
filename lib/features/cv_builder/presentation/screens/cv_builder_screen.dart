@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import '../bloc/cv_bloc.dart';
 import 'package:quickcvpro/features/profile/presentation/bloc/profile_bloc.dart';
 import '../../../../core/network/bloc/connectivity_bloc.dart';
 import '../../../../core/network/bloc/connectivity_state.dart';
 import '../../../../core/widgets/no_internet_screen.dart';
+import '../../../../core/widgets/custom_gradient_header.dart';
 
 import 'cv_steps/step_career_objective.dart';
 import 'cv_steps/step_personal_profile.dart';
@@ -108,54 +109,50 @@ class _CvBuilderScreenState extends State<CvBuilderScreen> {
             ),
             child: Scaffold(
               backgroundColor: const Color(0xFFF8F9FA),
-            appBar: AppBar(
-              backgroundColor: Colors.white,
-              systemOverlayStyle: const SystemUiOverlayStyle(
-                statusBarColor: Colors.transparent,
-                statusBarIconBrightness: Brightness.dark,
-                statusBarBrightness: Brightness.light,
-              ),
-              elevation: 0,
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back, color: Color(0xFF191C1D)),
-                onPressed: () => _currentStep == 0
-                    ? Navigator.pop(context)
-                    : _prevStep(),
-              ),
-              title: Text(
-                _stepTitles[_currentStep],
-                style: GoogleFonts.manrope(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: const Color(0xFF191C1D),
-                ),
-              ),
-              bottom: PreferredSize(
-                preferredSize: const Size.fromHeight(4),
-                child: _StepProgressBar(
-                  current: _currentStep,
-                  total: _stepTitles.length,
-                ),
+              body: Column(
+                children: [
+                  BlocBuilder<CvBloc, CvState>(
+                    builder: (context, cvState) {
+                      String tplName = 'Template';
+                      if (cvState.model.templateId.isNotEmpty) {
+                        tplName = cvState.model.templateId.split('_').map((w) => w.isNotEmpty ? w[0].toUpperCase() + w.substring(1) : '').join(' ');
+                      }
+                      return CustomGradientHeader(
+                        title: 'Curriculum Vitae',
+                        subtitle: 'Fill in your details below to build your CV',
+                        badgeText: tplName,
+                        onBackPressed: () => _currentStep == 0
+                            ? Navigator.pop(context)
+                            : _prevStep(),
+                      );
+                    },
+                  ),
+                  _StepProgressBar(
+                    current: _currentStep,
+                    total: _stepTitles.length,
+                  ),
+                  Expanded(
+                    child: isOffline
+                        ? NoInternetScreen(
+                            onRetry: () {}, // Handled by connectivity bloc auto reload seamlessly when connection restores
+                          )
+                        : PageView(
+                            controller: _pageController,
+                            physics: const NeverScrollableScrollPhysics(),
+                            children: [
+                              StepCareerObjective(onNext: _nextStep),
+                              StepPersonalProfile(onNext: _nextStep),
+                              StepEducation(onNext: _nextStep),
+                              StepSkills(onNext: _nextStep),
+                              StepWorkExperience(onNext: _nextStep),
+                              StepLanguages(onNext: _nextStep),
+                              const StepReviewSubmit(),
+                            ],
+                          ),
+                  ),
+                ],
               ),
             ),
-            body: isOffline
-                ? NoInternetScreen(
-                    onRetry: () {}, // Handled by connectivity bloc auto reload seamlessly when connection restores
-                  )
-                : PageView(
-                    controller: _pageController,
-                    physics: const NeverScrollableScrollPhysics(),
-                    children: [
-                      StepCareerObjective(onNext: _nextStep),
-                      StepPersonalProfile(onNext: _nextStep),
-                      StepEducation(onNext: _nextStep),
-                      StepSkills(onNext: _nextStep),
-                      StepWorkExperience(onNext: _nextStep),
-                      StepLanguages(onNext: _nextStep),
-                      const StepReviewSubmit(),
-                    ],
-                  ),
-          ),
           );
         },
       ),

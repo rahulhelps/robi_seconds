@@ -4,8 +4,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/sop_model.dart';
-import '../../domain/sop_repository.dart';
-import '../../data/sop_pdf_generator.dart';
 import '../bloc/sop_bloc.dart';
 import '../widgets/sop_form_widgets.dart';
 import 'sop_output_screen.dart';
@@ -26,10 +24,7 @@ class SopScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => SopBloc(context.read<SopRepository>(), SopPdfGenerator()),
-      child: _SopFormView(templateId: templateId, templateName: templateName),
-    );
+    return _SopFormView(templateId: templateId, templateName: templateName);
   }
 }
 
@@ -132,7 +127,7 @@ class _SopFormViewState extends State<_SopFormView> {
   Widget build(BuildContext context) {
     return BlocConsumer<SopBloc, SopState>(
       listener: (context, state) {
-        if (state is SopSuccess) {
+        if (state is SopSuccess && state.savedSop != null) {
           final bloc = context.read<SopBloc>();
           Navigator.pushReplacement(
             context,
@@ -140,15 +135,10 @@ class _SopFormViewState extends State<_SopFormView> {
               builder: (_) => BlocProvider.value(
                 value: bloc,
                 child: SopOutputScreen(
-                  saved: SavedSop(
-                    id: 'sop_generated_id',
-                    header: 'Statement of Purpose',
-                    body: state.result ?? '',
-                    footer: 'Sincerely,\n${_nameCtrl.text.trim()}',
-                    createdAt: DateTime.now().toIso8601String(),
-                    templateId: widget.templateId,
-                  ),
+                  saved: state.savedSop!,
                   pdfBytes: state.pdfBytes,
+                  model: state.model,
+                  generatedPayload: state.generatedPayload,
                 ),
               ),
             ),

@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../domain/cover_letter_repository.dart';
 import '../bloc/cover_letter_bloc.dart';
 import 'cover_letter_output_screen.dart';
+import '../../../../core/widgets/custom_gradient_header.dart';
 
 class CoverLetterListScreen extends StatelessWidget {
   const CoverLetterListScreen({super.key});
@@ -32,109 +33,186 @@ class _CoverLetterListView extends StatelessWidget {
       ),
       child: Scaffold(
         backgroundColor: const Color(0xFFF8F9FA),
-        appBar: AppBar(
-        leading: IconButton(
-          onPressed: () {
-            Navigator.pop(context);
-          },
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-        ),
-        backgroundColor: Colors.white,
-        systemOverlayStyle: const SystemUiOverlayStyle(
-          statusBarColor: Colors.transparent,
-          statusBarIconBrightness: Brightness.dark,
-          statusBarBrightness: Brightness.light,
-        ),
-        elevation: 0,
-        title: Text(
-          'My Cover Letters',
-          style: GoogleFonts.manrope(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: const Color(0xFF191C1D),
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded, color: Colors.black),
-            onPressed: () => context.read<CoverLetterBloc>().add(const FetchCoverLetters()),
-          ),
-        ],
-      ),
-      body: BlocConsumer<CoverLetterBloc, CoverLetterState>(
-        listener: (context, state) {
-          if (state is CoverLetterError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-        },
-        builder: (context, state) {
-          if (state is CoverLetterLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (state is CoverLetterLoaded) {
-            final items = state.items;
-            if (items.isEmpty) {
-              return _EmptyCoverLetterState(
-                onRefresh: () => context.read<CoverLetterBloc>().add(const FetchCoverLetters()),
-              );
-            }
-
-            return RefreshIndicator(
-              onRefresh: () async =>
-                  context.read<CoverLetterBloc>().add(const FetchCoverLetters()),
-              child: ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: items.length,
-                itemBuilder: (context, index) {
-                  final item = items[index];
-                  final letterNumber = items.length - index;
-                  final dateStr = _formatDate(item.createdAt);
-
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    child: ListTile(
-                      leading: const Icon(
-                        Icons.mark_email_read_outlined,
-                        color: Color(0xFF024D87),
+        body: Column(
+          children: [
+            CustomGradientHeader(
+              title: 'My Cover Letters',
+              subtitle: 'Access your drafted cover letters',
+              badgeText: 'All Saved',
+              onBackPressed: () => Navigator.pop(context),
+            ),
+            Expanded(
+              child: BlocConsumer<CoverLetterBloc, CoverLetterState>(
+                listener: (context, state) {
+                  if (state is CoverLetterError) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(state.message),
+                        backgroundColor: Colors.red,
                       ),
-                      title: Text(
-                        "Cover Letter #$letterNumber",
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                    );
+                  }
+                },
+                builder: (context, state) {
+                  if (state is CoverLetterLoading) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  if (state is CoverLetterLoaded) {
+                    final items = state.items;
+                    
+                    return RefreshIndicator(
+                      onRefresh: () async =>
+                          context.read<CoverLetterBloc>().add(const FetchCoverLetters()),
+                      child: ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+                        itemCount: items.isEmpty ? 1 : items.length + 1,
+                        itemBuilder: (context, index) {
+                          if (index == items.length) {
+                            return _buildCreateNewBox(context, '+ Build Another Cover Letter', () => Navigator.pop(context));
+                          }
+                          final item = items[index];
+                          final letterNumber = items.length - index;
+                          final dateStr = _formatDate(item.createdAt);
+                          
+                          // Template Name
+                          final String templateName = 'Professional';
+
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 16),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.04),
+                                  blurRadius: 20,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(16),
+                              child: IntrinsicHeight(
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    // Left Accent Strip
+                                    Container(
+                                      width: 4,
+                                      color: const Color(0xFF009688), // Teal
+                                    ),
+                                    Expanded(
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(16.0),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              "Cover Letter #$letterNumber",
+                                              style: GoogleFonts.manrope(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16,
+                                                color: const Color(0xFF1A1A1A),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 6),
+                                            // Pill badge
+                                            Align(
+                                              alignment: Alignment.centerLeft,
+                                              child: Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                decoration: BoxDecoration(
+                                                  color: const Color(0xFFE0F2F1), // Light teal
+                                                  borderRadius: BorderRadius.circular(12),
+                                                ),
+                                                child: Text(
+                                                  templateName,
+                                                  style: GoogleFonts.inter(
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: const Color(0xFF00796B),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 10),
+                                            // Date
+                                            Row(
+                                              children: [
+                                                const Icon(Icons.access_time_rounded, size: 14, color: Colors.grey),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  dateStr,
+                                                  style: GoogleFonts.inter(
+                                                    fontSize: 12,
+                                                    color: Colors.grey.shade600,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    // Trailing Block
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Material(
+                                            color: const Color(0xFFF0F9FF),
+                                            borderRadius: BorderRadius.circular(8),
+                                            child: InkWell(
+                                              borderRadius: BorderRadius.circular(8),
+                                              onTap: () {
+                                                Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                    builder: (_) => CoverLetterOutputScreen(saved: item),
+                                                  ),
+                                                );
+                                              },
+                                              child: const Padding(
+                                                padding: EdgeInsets.all(8.0),
+                                                child: Icon(Icons.download_rounded, color: Color(0xFF024D87), size: 20),
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Material(
+                                            color: const Color(0xFFFFF0F0),
+                                            borderRadius: BorderRadius.circular(8),
+                                            child: InkWell(
+                                              borderRadius: BorderRadius.circular(8),
+                                              onTap: () {},
+                                              child: const Padding(
+                                                padding: EdgeInsets.all(8.0),
+                                                child: Icon(Icons.delete_outline_rounded, color: Color(0xFFBA1A1A), size: 20),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
                       ),
-                      subtitle: Text(dateStr),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.download_rounded, color: Color(0xFF51B1E1)),
-                          const SizedBox(width: 8),
-                          const Icon(Icons.chevron_right),
-                        ],
-                      ),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => CoverLetterOutputScreen(saved: item),
-                          ),
-                        );
-                      },
-                    ),
-                  );
+                    );
+                  }
+
+                  return const SizedBox.shrink();
                 },
               ),
-            );
-          }
-
-          return const SizedBox.shrink();
-        },
+            ),
+          ],
+        ),
       ),
-    ),
     );
   }
 
@@ -147,28 +225,33 @@ class _CoverLetterListView extends StatelessWidget {
       return iso;
     }
   }
-}
 
-class _EmptyCoverLetterState extends StatelessWidget {
-  final VoidCallback onRefresh;
-
-  const _EmptyCoverLetterState({required this.onRefresh});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.mail_lock_outlined, size: 64, color: Colors.grey),
-          const SizedBox(height: 16),
-          const Text(
-            "No Cover Letters Found",
-            style: TextStyle(fontSize: 18, color: Colors.grey),
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton(onPressed: onRefresh, child: const Text("Refresh")),
-        ],
+  Widget _buildCreateNewBox(BuildContext context, String text, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF0F9FF),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFF024D87).withValues(alpha: 0.2), width: 1.5, strokeAlign: BorderSide.strokeAlignInside),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.add_circle_outline_rounded, color: Color(0xFF024D87)),
+            const SizedBox(width: 8),
+            Text(
+              text,
+              style: GoogleFonts.manrope(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                color: const Color(0xFF024D87),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

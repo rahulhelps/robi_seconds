@@ -9,6 +9,7 @@ import '../../../profile/presentation/bloc/profile_bloc.dart';
 import '../../../../core/network/bloc/connectivity_bloc.dart';
 import '../../../../core/network/bloc/connectivity_state.dart';
 import '../../../../core/widgets/no_internet_widget.dart';
+import '../../../../core/widgets/custom_gradient_header.dart';
 
 /// Cover letter editor screen.
 ///
@@ -155,41 +156,19 @@ class _CoverLetterViewState extends State<_CoverLetterView> {
               ),
               child: Scaffold(
                 backgroundColor: const Color(0xFFF8F9FA),
-                appBar: AppBar(
-                backgroundColor: Colors.white,
-                systemOverlayStyle: const SystemUiOverlayStyle(
-                  statusBarColor: Colors.transparent,
-                  statusBarIconBrightness: Brightness.dark,
-                  statusBarBrightness: Brightness.light,
-                ),
-                elevation: 0,
-                leading: IconButton(
-                  icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF191C1D), size: 20),
-                  onPressed: () => Navigator.pop(context),
-                ),
-                title: Text(
-                  'Cover Letter',
-                  style: GoogleFonts.manrope(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF191C1D),
-                  ),
-                ),
-                actions: [
-                  IconButton(
-                    tooltip: 'Choose Template',
-                    icon: const Icon(Icons.auto_awesome_motion_rounded, color: Color(0xFF024D87)),
-                    onPressed: isSubmitting || isOffline ? null : () => _openTemplateSheet(context),
-                  ),
-                ],
-              ),
-              body: Column(
-                children: [
-                  AnimatedInternetBanner(
-                    isOffline: isOffline,
-                    onRetry: () => context.read<CoverLetterBloc>().add(const LoadTemplates()),
-                  ),
-                  Expanded(
+                body: Column(
+                  children: [
+                    CustomGradientHeader(
+                      title: 'Cover Letter',
+                      subtitle: 'Fill in your details below to draft your Cover Letter',
+                      badgeText: state.model.title.isNotEmpty ? state.model.title : 'Template',
+                      onBackPressed: () => Navigator.pop(context),
+                    ),
+                    AnimatedInternetBanner(
+                      isOffline: isOffline,
+                      onRetry: () => context.read<CoverLetterBloc>().add(const LoadTemplates()),
+                    ),
+                    Expanded(
                     child: SingleChildScrollView(
                       padding: const EdgeInsets.fromLTRB(16, 20, 16, 100),
                       child: Column(
@@ -407,29 +386,14 @@ class _TemplateSheet extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const SizedBox(height: 12),
-        Container(
-          width: 40,
-          height: 4,
-          decoration: BoxDecoration(
-            color: const Color(0xFFD8DDD8),
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
-        const SizedBox(height: 16),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Row(
-            children: [
-              Text(
-                'Choose a Template',
-                style: GoogleFonts.manrope(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: const Color(0xFF191C1D),
-                ),
-              ),
-            ],
+        ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          child: const CustomGradientHeader(
+            title: 'Choose Your Tone',
+            subtitle: 'Select a professional template for your Cover Letter',
+            badgeText: '8 Templates',
+            disableTopPadding: true,
+            showBackButton: false,
           ),
         ),
         const SizedBox(height: 12),

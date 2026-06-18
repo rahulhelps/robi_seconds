@@ -5,6 +5,7 @@ import 'package:quickcvpro/features/profile/presentation/bloc/profile_bloc.dart'
 import 'package:quickcvpro/features/cv_builder/presentation/screens/cv_list_screen.dart';
 import 'package:quickcvpro/features/cover_letter/presentation/screens/cover_letter_list_screen.dart';
 import 'package:quickcvpro/features/sop/presentation/screens/sop_list_screen.dart';
+import 'package:quickcvpro/features/sop/presentation/bloc/sop_bloc.dart';
 import '../../../../core/network/bloc/connectivity_bloc.dart';
 import '../../../../core/network/bloc/connectivity_state.dart';
 
@@ -38,7 +39,7 @@ class QuickStatsGrid extends StatelessWidget {
         if (profileState is ProfileLoaded) {
           cvCount = profileState.cvCount.toString();
           coverLetterCount = profileState.coverLetterCount.toString();
-          sopCount = profileState.sopCount.toString();
+          // sopCount will be dynamically obtained from SopBloc below
           print("Dashboard CoverLetterCount: $coverLetterCount");
         }
 
@@ -134,10 +135,32 @@ class QuickStatsGrid extends StatelessWidget {
                   crossAxisSpacing: 10,
                   mainAxisSpacing: 10,
                   childAspectRatio: 0.9,
-                  children: stats.map((s) => _StatTile(
-                    item: s, 
-                    isOffline: isOffline,
-                  )).toList(),
+                  children: stats.map((s) {
+                    if (s.label == 'SOPs Created') {
+                      return BlocBuilder<SopBloc, SopState>(
+                        builder: (context, sopState) {
+                          String dynamicSopCount = '0';
+                          if (sopState is SopSuccess && sopState.history != null) {
+                            dynamicSopCount = sopState.history!.length.toString();
+                          }
+                          return _StatTile(
+                            item: _StatItem(
+                              icon: s.icon,
+                              iconColor: s.iconColor,
+                              value: dynamicSopCount,
+                              label: s.label,
+                              onTap: s.onTap,
+                            ),
+                            isOffline: isOffline,
+                          );
+                        },
+                      );
+                    }
+                    return _StatTile(
+                      item: s, 
+                      isOffline: isOffline,
+                    );
+                  }).toList(),
                 ),
               ],
             );

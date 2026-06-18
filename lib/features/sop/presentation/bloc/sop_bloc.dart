@@ -35,6 +35,11 @@ class SopHistoryRequested extends SopEvent {
   const SopHistoryRequested();
 }
 
+class SopDeleteRequested extends SopEvent {
+  final String id;
+  const SopDeleteRequested(this.id);
+}
+
 // ── States ───────────────────────────────────────────────────────────────────
 
 abstract class SopState {
@@ -64,11 +69,17 @@ class SopDownloadSuccess extends SopState {
 }
 
 class SopSuccess extends SopState {
-  final String? result;
-  final List<SopModel>? history;
+  final SavedSop? savedSop;
+  final List<SavedSop>? history;
   final Uint8List? pdfBytes;
+  final String? generatedPayload;
+  final SopModel? model;
   
-  const SopSuccess({this.result, this.history, this.pdfBytes});
+  const SopSuccess({this.savedSop, this.history, this.pdfBytes, this.generatedPayload, this.model});
+}
+
+class SopDeleteSuccess extends SopState {
+  const SopDeleteSuccess();
 }
 
 class SopFailure extends SopState {
@@ -95,6 +106,7 @@ class SopBloc extends Bloc<SopEvent, SopState> {
     on<SopGenerateRequested>(_onGenerateRequested);
     on<SopDownloadRequested>(_onDownloadRequested);
     on<SopHistoryRequested>(_onHistoryRequested);
+    on<SopDeleteRequested>(_onDeleteRequested);
   }
 
   void _onFormUpdated(SopFormUpdated event, Emitter<SopState> emit) {
@@ -116,17 +128,44 @@ class SopBloc extends Bloc<SopEvent, SopState> {
         title: 'Template', 
       );
       
-      // Fetch the AI text first so we can embed it in the PDF
-      final result = await _repository.generateSop(event.model);
+      // Make API call to create the SOP on the backend
+      final result = await _repository.createSop(event.model);
       
       await result.fold(
         (failure) async {
           emit(SopFailure(failure.message));
         },
-        (sopText) async {
-          // Generate the PDF bytes locally using the structured text
+        (savedSop) async {
+          // Generate fallback payload if backend returns empty fields
+          final hasText = savedSop.header.isNotEmpty || savedSop.body.isNotEmpty;
+          final headerText = hasText ? savedSop.header : 'Statement of Purpose';
+          final footerText = hasText ? savedSop.footer : 'Sincerely,\n${event.model.name}';
+          
+          final bodyText = hasText ? savedSop.body : '''I am writing to express my profound interest in the ${event.model.programName} program at ${event.model.universityName}, ${event.model.country}. With a strong academic foundation and a clear vision for my future, I am confident that this program aligns perfectly with my career aspirations.
+
+${event.model.academicBackground != null ? 'My academic journey in ${event.model.academicBackground} ' : 'My academic journey '}${event.model.gpa != null ? 'with a GPA of ${event.model.gpa} ' : ''}has equipped me with the analytical and technical skills necessary to thrive in a rigorous academic environment. 
+
+${event.model.workExperience != null ? 'Professionally, my experience in ${event.model.workExperience} has further solidified my practical understanding and ability to apply theoretical concepts to real-world challenges. ' : ''}${event.model.researchExperience != null ? 'Additionally, my research on ${event.model.researchExperience} highlights my commitment to advancing knowledge in this field. ' : ''}
+
+${event.model.whyThisUniversity != null ? 'I chose ${event.model.universityName} because of ${event.model.whyThisUniversity}. ' : 'The esteemed faculty, state-of-the-art facilities, and diverse community at ${event.model.universityName} make it the ideal place for me to pursue my studies. '}
+
+Upon completing the ${event.model.programName} program, my goal is to ${event.model.goals ?? 'contribute meaningfully to the industry and society'}. ${event.model.skills != null ? 'My proficiency in ${event.model.skills} will be instrumental in achieving these objectives. ' : ''}
+
+I look forward to the opportunity to contribute to and grow within your esteemed institution.''';
+
+          // Generate the PDF bytes locally using the structured text from the saved SOP
+          final sopText = '$headerText\n\n$bodyText\n\n$footerText';
           final pdfBytes = await _pdfGenerator.generatePdf(event.model, template, sopText);
-          emit(SopSuccess(result: sopText, pdfBytes: pdfBytes));
+          
+          emit(SopSuccess(
+            savedSop: savedSop, 
+            pdfBytes: pdfBytes, 
+            generatedPayload: sopText, 
+            model: event.model,
+          ));
+          
+          // Instant Counter Sync: immediately reload active SOP list history
+          add(const SopHistoryRequested());
         },
       );
     } catch (e) {
@@ -155,6 +194,19 @@ class SopBloc extends Bloc<SopEvent, SopState> {
     result.fold(
       (failure) => emit(SopFailure(failure.message)),
       (history) => emit(SopSuccess(history: history)),
+    );
+  }
+
+  Future<void> _onDeleteRequested(SopDeleteRequested event, Emitter<SopState> emit) async {
+    emit(const SopLoading());
+    final result = await _repository.deleteSop(event.id);
+    await result.fold(
+      (failure) async => emit(SopFailure(failure.message)),
+      (_) async {
+        emit(const SopDeleteSuccess());
+        // Re-fetch history
+        add(const SopHistoryRequested());
+      },
     );
   }
 }

@@ -7,7 +7,7 @@ import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../auth/presentation/bloc/auth_event.dart';
 import '../../../auth/presentation/bloc/auth_state.dart';
 import 'package:quickcvpro/core/widgets/app_buttons.dart';
-import 'package:quickcvpro/core/widgets/pressable_scale.dart';
+
 
 import '../bloc/profile_bloc.dart';
 import '../widgets/gradient_promo_card.dart';
