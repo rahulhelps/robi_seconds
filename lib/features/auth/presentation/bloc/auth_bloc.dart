@@ -128,10 +128,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     emit(AuthLoading());
     try {
-      // Step 1: Verify OTP with BDApps
+      // Verify OTP with platform_api. On success it returns + persists the JWT
+      // pair and user, so the user is already authenticated afterwards.
       final verifyResult = await BDAppsService.verifyOtp(
         event.otp,
         event.referenceNo,
+        event.phone,
       );
 
       if (!verifyResult.success) {
@@ -139,11 +141,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         return;
       }
 
-      // Step 2: Call JWT backend (POST /auth/phone-auth)
-      await AuthService.loginWithPhone(event.phone);
-
-      // loginWithPhone already saves accessToken, refreshToken, and user.
-      // Also persist phone for subscription checks on future launches.
+      // Persist phone for subscription checks on future launches.
       await UserStorage.savePhone(event.phone);
       await UserStorage.updateSubscriptionStatus(true);
 

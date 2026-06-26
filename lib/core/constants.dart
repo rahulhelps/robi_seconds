@@ -1,5 +1,7 @@
 class ApiConstants {
   ApiConstants._();
 
-  static const String baseUrl = 'http://147.93.29.196:5000/api/v1';
+  /// Single source of truth for the platform_api base URL.
+  /// Change this one line to point the whole app at a different backend.
+  static const String baseUrl = 'https://api.thinkfastbd.com/api/v1';
 }

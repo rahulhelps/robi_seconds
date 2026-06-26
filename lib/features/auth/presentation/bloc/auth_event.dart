@@ -33,10 +33,10 @@ class LoginSuccess extends AuthEvent {
   List<Object> get props => [token];
 }
 
-// ── BDApps OTP flow ───────────────────────────────────────────────────────────
+// ── OTP flow (platform_api, quickcv tenant) ───────────────────────────────────
 
 /// Dispatched when the user submits their Robi/Airtel phone number.
-/// Triggers POST /send_otp.php.
+/// Triggers POST /auth/otp/send.
 class SendOtpRequested extends AuthEvent {
   final String phone;
 
@@ -46,8 +46,8 @@ class SendOtpRequested extends AuthEvent {
   List<Object> get props => [phone];
 }
 
-/// Dispatched when the user submits the 6-digit OTP.
-/// Triggers POST /verify_otp.php, then POST /auth/phone-auth for JWT.
+/// Dispatched when the user submits the OTP.
+/// Triggers POST /auth/otp/verify, which also issues the JWT pair.
 class OtpVerified extends AuthEvent {
   final String otp;
   final String referenceNo;
@@ -64,7 +64,7 @@ class OtpVerified extends AuthEvent {
 }
 
 /// Dispatched on every app launch when a token already exists.
-/// Triggers POST /check_subscription.php.
+/// Triggers GET /auth/me to read subscription status.
 class CheckSubscriptionStatus extends AuthEvent {
   final String phone;
 

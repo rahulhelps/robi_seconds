@@ -5,6 +5,8 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:open_file/open_file.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
+import '../../../../core/constants.dart';
+import '../../../../core/services/auth_service.dart';
 import '../bloc/download_bloc.dart';
 
 /// Displays a CV PDF.
@@ -61,7 +63,7 @@ class PdfPreviewScreen extends StatefulWidget {
 class _PdfPreviewScreenState extends State<PdfPreviewScreen> {
   // ── Constants ──────────────────────────────────────────────────────────────
 
-  static const _serverBase = 'http://147.93.29.196:5000/api/v1';
+  static const _serverBase = ApiConstants.baseUrl;
 
   // ── State ──────────────────────────────────────────────────────────────────
 
@@ -85,10 +87,64 @@ class _PdfPreviewScreenState extends State<PdfPreviewScreen> {
   void initState() {
     super.initState();
     if (_isDbMode) {
-      // Network mode — SfPdfViewer handles loading; we keep _isLoadingPdf = true
-      // until onDocumentLoaded or onDocumentLoadFailed is called.
+      // The render is queued async on the server; the first view can return
+      // 409 ("still being generated"). Fetch bytes with a short retry, then
+      // render via SfPdfViewer.memory (same path as legacy mode).
+      _loadDbPdfWithRetry();
     } else {
       _loadPdfBytes();
+    }
+  }
+
+  // ── Fetch PDF bytes (DB mode, retry while the render is in progress) ───────
+
+  Future<void> _loadDbPdfWithRetry() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoadingPdf = true;
+      _loadError = null;
+      _pdfBytes = null;
+    });
+
+    const maxAttempts = 6;
+    const retryDelay = Duration(milliseconds: 1500);
+
+    try {
+      for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+        final response = await AuthService.authenticatedGetRaw(_networkUrl);
+        print('[PdfPreviewScreen] DB view attempt $attempt → ${response.statusCode}');
+
+        if (response.statusCode == 200) {
+          final bytes = response.bodyBytes;
+          if (bytes.length < 4 ||
+              String.fromCharCodes(bytes.sublist(0, 4)) != '%PDF') {
+            throw 'Response is not a valid PDF file.';
+          }
+          if (mounted) {
+            setState(() {
+              _pdfBytes = bytes;
+              _isLoadingPdf = false;
+            });
+          }
+          return;
+        }
+
+        // 409 = still rendering → back off and retry. Anything else is fatal.
+        if (response.statusCode == 409 && attempt < maxAttempts) {
+          await Future.delayed(retryDelay);
+          continue;
+        }
+        throw 'Server returned ${response.statusCode}.';
+      }
+      throw 'Your CV is taking longer than expected to generate. Please try again in a moment.';
+    } catch (e) {
+      print('[PdfPreviewScreen] DB view ERROR: $e');
+      if (mounted) {
+        setState(() {
+          _loadError = e.toString();
+          _isLoadingPdf = false;
+        });
+      }
     }
   }
 
@@ -280,45 +336,9 @@ class _PdfPreviewScreenState extends State<PdfPreviewScreen> {
       );
     }
 
-    // ── DB mode: SfPdfViewer.network with Authorization header ───────────────
-    if (_isDbMode) {
-      final token = widget.bearerToken ?? '';
-      return Stack(
-        children: [
-          SfPdfViewer.network(
-            _networkUrl,
-            headers: {
-              'Authorization': 'Bearer $token',
-            },
-            controller: _pdfController,
-            enableTextSelection: true,
-            pageSpacing: 4,
-            canShowScrollHead: true,
-            canShowScrollStatus: true,
-            canShowPaginationDialog: true,
-            onDocumentLoaded: (details) {
-              print('[PdfPreviewScreen] Rendered ${details.document.pages.count} pages ✅');
-              if (mounted) setState(() => _isLoadingPdf = false);
-            },
-            onDocumentLoadFailed: (details) {
-              print('[PdfPreviewScreen] Network PDF render error: ${details.error}');
-              if (mounted) {
-                setState(() {
-                  _loadError = details.description;
-                  _isLoadingPdf = false;
-                });
-              }
-            },
-          ),
-          if (_isLoadingPdf)
-            const Center(
-              child: CircularProgressIndicator(color: Color(0xFF024D87)),
-            ),
-        ],
-      );
-    }
-
-    // ── Legacy mode: SfPdfViewer.memory with downloaded bytes ─────────────────
+    // ── Both modes render downloaded bytes via SfPdfViewer.memory ────────────
+    // DB mode fetches with retry (handles async-render 409s); legacy mode
+    // downloads directly. Either way the bytes land in [_pdfBytes].
     return Stack(
       children: [
         if (_pdfBytes != null)

@@ -2,9 +2,12 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:http/http.dart' as http;
+import '../constants.dart';
+import '../storage/token_manager.dart';
+import '../storage/user_storage.dart';
+import 'auth_service.dart';
 
-/// Base URL for BDApps PHP APIs.
-const _bdappsBaseUrl = 'http://147.93.29.196:8080';
+const _baseUrl = ApiConstants.baseUrl;
 
 // ── Result models ─────────────────────────────────────────────────────────────
 
@@ -18,8 +21,8 @@ enum BDAppsSubscriptionStatus {
 class BDAppsOtpResult {
   final bool success;
   final String referenceNo;
+
   /// Human-readable message from the server shown in snackbar on failure.
-  /// Reads statusDetail first, falls back to message field.
   final String? statusDetail;
 
   const BDAppsOtpResult({
@@ -56,75 +59,60 @@ class BDAppsUnsubscribeResult {
 // ── Service ───────────────────────────────────────────────────────────────────
 
 class BDAppsService {
+  /// Sentinel returned by [sendOtp] when the number is already registered and
+  /// the platform signed the user in without an OTP. AuthBloc keys off this.
+  static const alreadyRegisteredDetail = 'user already registered';
+
+  /// Strips a leading +88 / 88 country code if the caller included one.
+  static String _clean(String phone) {
+    if (phone.startsWith('+88')) return phone.substring(3);
+    if (phone.startsWith('88') && phone.length > 11) return phone.substring(2);
+    return phone;
+  }
+
   // ── Send OTP ────────────────────────────────────────────────────────────────
 
-  /// POST /send_otp.php — multipart/form-data { user_mobile }
-  ///
-  /// Navigate to OTP screen ONLY when:
-  ///   success == true  AND  referenceNo is non-empty
-  ///
-  /// Anything else → stay on Auth Screen, show statusDetail in snackbar.
   static Future<BDAppsOtpResult> sendOtp(String phone) async {
-    // Strip +88 / 88 prefix if accidentally included.
-    final cleanPhone = phone.startsWith('+88')
-        ? phone.substring(3)
-        : (phone.startsWith('88') && phone.length > 11)
-            ? phone.substring(2)
-            : phone;
-
     try {
-      final uri = Uri.parse('$_bdappsBaseUrl/send_otp.php');
+      final uri = Uri.parse('$_baseUrl/auth/otp/send');
+      final response = await http
+          .post(
+            uri,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'phoneNumber': _clean(phone)}),
+          )
+          .timeout(const Duration(seconds: 15));
 
-      // MultipartRequest sends genuine multipart/form-data (not url-encoded).
-      final request = http.MultipartRequest('POST', uri)
-        ..fields['user_mobile'] = cleanPhone;
+      debugPrint('[OTP] sendOtp ← ${response.statusCode} ${response.body}');
 
-      debugPrint('╔══════════════════════════════════════════════');
-      debugPrint('║ [BDApps] sendOtp REQUEST');
-      debugPrint('║  URL   : $uri');
-      debugPrint('║  Field : user_mobile=$cleanPhone');
-      debugPrint('╚══════════════════════════════════════════════');
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final success = body['success'] == true;
+      final data = body['data'] as Map<String, dynamic>?;
 
-      final streamed =
-          await request.send().timeout(const Duration(seconds: 15));
-      final response = await http.Response.fromStream(streamed);
-
-      debugPrint('╔══════════════════════════════════════════════');
-      debugPrint('║ [BDApps] sendOtp RESPONSE');
-      debugPrint('║  HTTP : ${response.statusCode}');
-      debugPrint('║  Body : ${response.body}');
-      debugPrint('╚══════════════════════════════════════════════');
-
-      final body        = jsonDecode(response.body) as Map<String, dynamic>;
-      final successFlag = body['success'] == true;
-      final referenceNo = body['referenceNo']?.toString() ?? '';
-      // statusDetail takes priority over message for the snackbar text.
-      final detail =
-          (body['statusDetail'] ?? body['message'])?.toString() ?? '';
-
-      debugPrint('[BDApps] sendOtp parsed → success=$successFlag '
-          'referenceNo="$referenceNo" detail="$detail"');
-
-      // ── THE ONLY SUCCESS CONDITION ─────────────────────────────────────────
-      if (successFlag && referenceNo.isNotEmpty) {
-        debugPrint('[BDApps] sendOtp ✓ → navigate to OTP screen');
-        return BDAppsOtpResult(success: true, referenceNo: referenceNo);
+      if (success && data != null) {
+        if (data['alreadyRegistered'] == true) {
+          return const BDAppsOtpResult(
+            success: false,
+            statusDetail: alreadyRegisteredDetail,
+          );
+        }
+        final referenceNo = data['referenceNo']?.toString() ?? '';
+        if (referenceNo.isNotEmpty) {
+          return BDAppsOtpResult(success: true, referenceNo: referenceNo);
+        }
       }
 
-      // ── Failure: stay on Auth Screen ───────────────────────────────────────
-      debugPrint('[BDApps] sendOtp ✗ → stay on Auth Screen');
       return BDAppsOtpResult(
         success: false,
-        statusDetail: detail.isNotEmpty ? detail : 'Failed to send OTP.',
+        statusDetail: body['message']?.toString() ?? 'Failed to send OTP.',
       );
     } on TimeoutException {
-      debugPrint('[BDApps] sendOtp ✗ Timeout');
       return const BDAppsOtpResult(
         success: false,
         statusDetail: 'Request timed out. Please try again.',
       );
-    } catch (e, st) {
-      debugPrint('[BDApps] sendOtp ✗ $e\n$st');
+    } catch (e) {
+      debugPrint('[OTP] sendOtp ✗ $e');
       return const BDAppsOtpResult(
         success: false,
         statusDetail: 'Network error. Please check your connection.',
@@ -134,29 +122,48 @@ class BDAppsService {
 
   // ── Verify OTP ──────────────────────────────────────────────────────────────
 
-  /// POST /verify_otp.php — multipart/form-data { Otp (capital O), referenceNo }
+  /// POST /auth/otp/verify { phoneNumber, referenceNo, code }.
+  ///
+  /// On success the platform returns the JWT pair + user, which we persist here
+  /// so the caller is fully authenticated without a second request.
   static Future<BDAppsVerifyResult> verifyOtp(
     String otp,
     String referenceNo,
+    String phone,
   ) async {
     try {
-      final uri = Uri.parse('$_bdappsBaseUrl/verify_otp.php');
-      debugPrint('[BDApps] verifyOtp → Otp=$otp referenceNo=$referenceNo');
+      final uri = Uri.parse('$_baseUrl/auth/otp/verify');
+      final response = await http
+          .post(
+            uri,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'phoneNumber': _clean(phone),
+              'referenceNo': referenceNo,
+              'code': otp,
+            }),
+          )
+          .timeout(const Duration(seconds: 15));
 
-      final request = http.MultipartRequest('POST', uri)
-        ..fields['Otp'] = otp
-        ..fields['referenceNo'] = referenceNo;
-
-      final streamed = await request.send().timeout(const Duration(seconds: 15));
-      final response = await http.Response.fromStream(streamed);
-
-      debugPrint(
-          '[BDApps] verifyOtp ← ${response.statusCode} ${response.body}');
+      debugPrint('[OTP] verifyOtp ← ${response.statusCode} ${response.body}');
 
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-      if (body['statusCode']?.toString() == 'S1000') {
+      final data = body['data'] as Map<String, dynamic>?;
+
+      if (body['success'] == true && data != null) {
+        final accessToken = data['accessToken'] as String?;
+        final refreshToken = data['refreshToken'] as String?;
+        if (accessToken != null && refreshToken != null) {
+          await TokenManager.saveTokens(
+            accessToken: accessToken,
+            refreshToken: refreshToken,
+          );
+        }
+        final user = data['user'] as Map<String, dynamic>?;
+        if (user != null) await UserStorage.saveUser(user);
         return const BDAppsVerifyResult(success: true);
       }
+
       return BDAppsVerifyResult(
         success: false,
         errorMessage:
@@ -168,7 +175,7 @@ class BDAppsService {
         errorMessage: 'Request timed out. Please try again.',
       );
     } catch (e) {
-      debugPrint('[BDApps] verifyOtp ✗ $e');
+      debugPrint('[OTP] verifyOtp ✗ $e');
       return const BDAppsVerifyResult(
         success: false,
         errorMessage: 'Network error. Please check your connection.',
@@ -178,83 +185,49 @@ class BDAppsService {
 
   // ── Check Subscription ───────────────────────────────────────────────────────
 
-  /// POST /check_subscription.php — multipart/form-data { user_mobile }
-  static Future<BDAppsSubscriptionResult> checkSubscription(
-    String phone,
-  ) async {
-    final uri = Uri.parse('$_bdappsBaseUrl/check_subscription.php');
-    debugPrint('[BDApps] checkSubscription → user_mobile=$phone');
+  /// GET /auth/me → maps `isSubscriptionActive` to a subscription status.
+  /// Requires a valid session (the splash screen only calls this when a token
+  /// exists). [phone] is unused now but kept for call-site compatibility.
+  static Future<BDAppsSubscriptionResult> checkSubscription(String phone) async {
+    final res = await AuthService.authenticatedGet('/auth/me');
+    final data = res['data'] as Map<String, dynamic>?;
+    final active = data?['isSubscriptionActive'] == true;
 
-    final request = http.MultipartRequest('POST', uri)
-      ..fields['user_mobile'] = phone;
+    debugPrint('[OTP] checkSubscription ← isSubscriptionActive=$active');
 
-    final streamed = await request.send().timeout(const Duration(seconds: 15));
-    final response = await http.Response.fromStream(streamed);
-
-    debugPrint(
-        '[BDApps] checkSubscription ← ${response.statusCode} ${response.body}');
-
-    final body         = jsonDecode(response.body) as Map<String, dynamic>;
-    final statusStr    = body['subscriptionStatus']?.toString() ?? '';
-    final isSubscribed = body['isSubscribed'] == true;
-
-    final BDAppsSubscriptionStatus status;
-    switch (statusStr) {
-      case 'REGISTERED':
-        status = BDAppsSubscriptionStatus.registered;
-      case 'UNREGISTERED':
-        status = BDAppsSubscriptionStatus.unregistered;
-      case 'INITIAL CHARGING PENDING':
-        status = BDAppsSubscriptionStatus.initialChargingPending;
-      default:
-        status = BDAppsSubscriptionStatus.unknown;
-    }
-
-    return BDAppsSubscriptionResult(status: status, isSubscribed: isSubscribed);
+    return BDAppsSubscriptionResult(
+      status: active
+          ? BDAppsSubscriptionStatus.registered
+          : BDAppsSubscriptionStatus.unregistered,
+      isSubscribed: active,
+    );
   }
 
   // ── Unsubscribe ──────────────────────────────────────────────────────────────
 
-  /// POST /unsubscribe.php — multipart/form-data { user_mobile }
+  /// POST /auth/unsubscribe (authenticated).
   static Future<BDAppsUnsubscribeResult> unsubscribe(String phone) async {
-    // Strip +88 / 88 prefix if accidentally included.
-    final cleanPhone = phone.startsWith('+88')
-        ? phone.substring(3)
-        : (phone.startsWith('88') && phone.length > 11)
-            ? phone.substring(2)
-            : phone;
-
     try {
-      final uri = Uri.parse('$_bdappsBaseUrl/unsubscribe.php');
-      final request = http.MultipartRequest('POST', uri)
-        ..fields['user_mobile'] = cleanPhone;
+      final res = await AuthService.authenticatedPost('/auth/unsubscribe', {});
+      debugPrint('[OTP] unsubscribe ← $res');
 
-      debugPrint('[BDApps] unsubscribe → user_mobile=$cleanPhone');
-
-      final streamed = await request.send().timeout(const Duration(seconds: 15));
-      final response = await http.Response.fromStream(streamed);
-
-      debugPrint('[BDApps] unsubscribe ← ${response.statusCode} ${response.body}');
-
-      final body = jsonDecode(response.body) as Map<String, dynamic>;
-      
-      if (body['success'] == true || body['statusCode']?.toString() == 'S1000') {
+      if (res['success'] == true) {
         return const BDAppsUnsubscribeResult(success: true);
       }
       return BDAppsUnsubscribeResult(
-        success: false, 
-        errorMessage: body['error']?.toString() ?? 'Failed to unsubscribe.',
+        success: false,
+        errorMessage: res['message']?.toString() ?? 'Failed to unsubscribe.',
       );
     } on TimeoutException {
       return const BDAppsUnsubscribeResult(
-        success: false, 
+        success: false,
         errorMessage: 'Request timed out. Please try again.',
       );
     } catch (e) {
-      debugPrint('[BDApps] unsubscribe ✗ $e');
-      return const BDAppsUnsubscribeResult(
-        success: false, 
-        errorMessage: 'Something went wrong. Please try again.',
+      debugPrint('[OTP] unsubscribe ✗ $e');
+      return BDAppsUnsubscribeResult(
+        success: false,
+        errorMessage: e.toString(),
       );
     }
   }
