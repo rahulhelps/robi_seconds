@@ -1,8 +1,9 @@
+import '../../../../core/constants.dart';
 import '../../../../core/services/auth_service.dart';
 import '../domain/cv_model.dart';
 import '../domain/cv_list_item.dart';
 
-const _baseUrl = 'http://147.93.29.196:5000/api/v1';
+const _baseUrl = ApiConstants.baseUrl;
 
 /// CvDatasource makes authenticated CV-related API calls using [AuthService].
 class CvDatasource {

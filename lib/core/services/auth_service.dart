@@ -2,11 +2,12 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'dart:io';
 import 'package:http_parser/http_parser.dart';
+import '../constants.dart';
 import '../storage/token_manager.dart';
 import '../storage/user_storage.dart';
 
-/// Base URL for all API calls.
-const _baseUrl = 'http://147.93.29.196:5000/api/v1';
+/// Base URL for all API calls — single source of truth in [ApiConstants].
+const _baseUrl = ApiConstants.baseUrl;
 
 /// AuthService handles all authentication-related HTTP calls using the `http`
 /// package. It also manages automatic token refresh on 401 responses.

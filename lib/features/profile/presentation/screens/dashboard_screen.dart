@@ -7,6 +7,7 @@ import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../auth/presentation/bloc/auth_event.dart';
 import '../../../auth/presentation/bloc/auth_state.dart';
 import 'package:quickcvpro/core/widgets/app_buttons.dart';
+import 'package:quickcvpro/core/storage/token_manager.dart';
 
 
 import '../bloc/profile_bloc.dart';
@@ -856,6 +857,9 @@ class _Avatar extends StatelessWidget {
                   child: hasImage
                       ? CachedNetworkImage(
                           imageUrl: url,
+                          httpHeaders: TokenManager.cachedAccessToken != null
+                              ? {'Authorization': 'Bearer ${TokenManager.cachedAccessToken}'}
+                              : null,
                           fit: BoxFit.cover,
                           placeholder: (context, url) => _avatarPlaceholder(),
                           errorWidget: (context, url, error) => _avatarPlaceholder(),

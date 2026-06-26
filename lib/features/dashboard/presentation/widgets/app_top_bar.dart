@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:quickcvpro/core/storage/token_manager.dart';
 import '../../../profile/presentation/bloc/profile_bloc.dart';
 
 class AppTopBar extends StatelessWidget implements PreferredSizeWidget {
@@ -114,6 +115,9 @@ class AppTopBar extends StatelessWidget implements PreferredSizeWidget {
                           child: (avatarUrl != null && avatarUrl.isNotEmpty)
                               ? CachedNetworkImage(
                                   imageUrl: avatarUrl,
+                                  httpHeaders: TokenManager.cachedAccessToken != null
+                                      ? {'Authorization': 'Bearer ${TokenManager.cachedAccessToken}'}
+                                      : null,
                                   fit: BoxFit.cover,
                                   placeholder: (context, url) => const Icon(Icons.person, color: Colors.white, size: 20),
                                   errorWidget: (context, url, error) => const Icon(Icons.person, color: Colors.white, size: 20),
