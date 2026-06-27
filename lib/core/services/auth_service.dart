@@ -85,17 +85,19 @@ class AuthService {
     return payload;
   }
 
-  // ── Token Refresh ─────────────────────────────────────────────────────────
+  // ── Token Refresh (single-flight) ──────────────────────────────────────────
 
-  /// Calls POST /auth/refresh with the stored refresh token.
-  ///
-  /// On success, saves the new access + refresh tokens.
-  /// On failure, clears all storage (forces logout).
-  ///
-  /// Returns true if refresh succeeded, false otherwise.
-  static Future<bool> refreshToken() async {
+  static Future<bool>? _refreshFuture;
+
+  static Future<bool> refreshToken() {
+    return _refreshFuture ??= _performRefresh().whenComplete(() {
+      _refreshFuture = null;
+    });
+  }
+
+  static Future<bool> _performRefresh() async {
     final storedRefreshToken = await TokenManager.getRefreshToken();
-    if (storedRefreshToken == null) {
+    if (storedRefreshToken == null || storedRefreshToken.isEmpty) {
       await logout();
       return false;
     }
@@ -116,33 +118,44 @@ class AuthService {
         final newToken = payload['accessToken'] as String?;
         final newRefreshToken = payload['refreshToken'] as String?;
 
-        if (newToken != null) {
-          print('[AuthService] Silent refresh succeeded. New accessToken: $newToken');
+        if (newToken != null && newToken.isNotEmpty) {
           await TokenManager.saveAccessToken(newToken);
-          
-          // Also save new refreshToken if backend returns one
+          // Persist the rotated refresh token so the next refresh uses it.
           if (newRefreshToken != null && newRefreshToken.isNotEmpty) {
-             print('[AuthService] New refreshToken received and saved.');
-             await TokenManager.saveRefreshToken(newRefreshToken);
+            await TokenManager.saveRefreshToken(newRefreshToken);
           }
+          print('[AuthService] Silent refresh succeeded.');
           return true;
         }
       }
 
-      // Refresh failed — logout the user
-      await logout();
-      return false;
-    } catch (e) {
-      // Only logout if it's an auth error, NOT a network timeout or connection issue
-      final errorStr = e.toString().toLowerCase();
-      if (errorStr.contains('401') ||
-          errorStr.contains('unauthorized') ||
-          errorStr.contains('invalid') ||
-          errorStr.contains('expired')) {
+      // 401/403 means the refresh token itself is invalid/expired/revoked —
+      // the session is genuinely over, so clear it.
+      if (response.statusCode == 401 || response.statusCode == 403) {
+        print('[AuthService] Refresh rejected (${response.statusCode}). Logging out.');
         await logout();
       }
+      // Any other status (5xx, unexpected body) is treated as transient: keep
+      // the session so the user can retry rather than being kicked out.
+      return false;
+    } catch (e) {
+      print('[AuthService] Refresh failed transiently: $e');
       return false;
     }
+  }
+
+  /// Awaits a refresh and throws a user-facing message on failure, telling a
+  /// genuinely-expired session apart from a transient network error — so a
+  /// connectivity blip during refresh doesn't surface as "logged out".
+  static Future<void> _ensureFreshTokenOrThrow() async {
+    final refreshed = await refreshToken();
+    if (refreshed) return;
+    final stillHasSession =
+        (await TokenManager.getRefreshToken())?.isNotEmpty ?? false;
+    if (stillHasSession) {
+      throw 'Could not reach the server. Please check your connection and try again.';
+    }
+    throw 'Session expired. Please log in again.';
   }
 
   // ── Authenticated GET helper ──────────────────────────────────────────────
@@ -152,8 +165,7 @@ class AuthService {
   static Future<Map<String, dynamic>> authenticatedGet(String path) async {
     final result = await _doGet(path);
     if (result['__status'] == 401) {
-      final refreshed = await refreshToken();
-      if (!refreshed) throw 'Session expired. Please log in again.';
+      await _ensureFreshTokenOrThrow();
       return _doGet(path);
     }
     return result;
@@ -167,8 +179,7 @@ class AuthService {
   ) async {
     final result = await _doPost(path, body);
     if (result['__status'] == 401) {
-      final refreshed = await refreshToken();
-      if (!refreshed) throw 'Session expired. Please log in again.';
+      await _ensureFreshTokenOrThrow();
       return _doPost(path, body);
     }
     return result;
@@ -182,8 +193,7 @@ class AuthService {
   ) async {
     final result = await _doPut(path, body);
     if (result['__status'] == 401) {
-      final refreshed = await refreshToken();
-      if (!refreshed) throw 'Session expired. Please log in again.';
+      await _ensureFreshTokenOrThrow();
       return _doPut(path, body);
     }
     return result;
@@ -194,8 +204,7 @@ class AuthService {
   static Future<Map<String, dynamic>> authenticatedDelete(String path) async {
     final result = await _doDelete(path);
     if (result['__status'] == 401) {
-      final refreshed = await refreshToken();
-      if (!refreshed) throw 'Session expired. Please log in again.';
+      await _ensureFreshTokenOrThrow();
       return _doDelete(path);
     }
     return result;
@@ -213,8 +222,7 @@ class AuthService {
     ).timeout(const Duration(seconds: 30));
 
     if (response.statusCode == 401) {
-      final refreshed = await refreshToken();
-      if (!refreshed) throw 'Session expired. Please log in again.';
+      await _ensureFreshTokenOrThrow();
       
       final newToken = await TokenManager.getAccessToken();
       response = await http.get(
@@ -371,8 +379,7 @@ class AuthService {
     print('[AuthService] RESPONSE BODY:\n${response.body}');
 
     if (response.statusCode == 401) {
-      final refreshed = await refreshToken();
-      if (!refreshed) throw 'Session expired. Please log in again.';
+      await _ensureFreshTokenOrThrow();
       // Retry once
       return uploadAvatar(filePath, fileName, mimeType);
     }
