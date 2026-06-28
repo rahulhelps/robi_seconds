@@ -20,14 +20,23 @@ class VerificationScreen extends StatefulWidget {
 
 class _VerificationScreenState extends State<VerificationScreen> {
   String _currentPin = '';
-  final FocusNode _focusNode = FocusNode();
+
+  // Keyboard fix: FocusNode initialised in initState so it survives rebuilds
+  // and the keyboard reopens every time the user taps the OTP field.
+  late FocusNode _otpFocusNode;
 
   // OTP length is now 6 digits (BDApps requirement).
   static const int _otpLength = 6;
 
   @override
+  void initState() {
+    super.initState();
+    _otpFocusNode = FocusNode();
+  }
+
+  @override
   void dispose() {
-    _focusNode.dispose();
+    _otpFocusNode.dispose();
     super.dispose();
   }
 
@@ -72,208 +81,222 @@ class _VerificationScreenState extends State<VerificationScreen> {
                 backgroundColor: const Color(0xFFF8F9FA),
                 body: Stack(
                   children: [
-                  // Background decorations matching Auth Screen style.
-                  Positioned(
-                    bottom: -96,
-                    right: -96,
-                    child: Container(
-                      width: 256,
-                      height: 256,
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Color(0x1A28A745),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Color(0x1A28A745),
-                            blurRadius: 80,
-                            spreadRadius: 40,
-                          ),
-                        ],
+                    // Background decorations matching Auth Screen style.
+                    Positioned(
+                      bottom: -96,
+                      right: -96,
+                      child: Container(
+                        width: 256,
+                        height: 256,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Color(0x1A28A745),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Color(0x1A28A745),
+                              blurRadius: 80,
+                              spreadRadius: 40,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                  Positioned(
-                    top: -96,
-                    left: -96,
-                    child: Container(
-                      width: 256,
-                      height: 256,
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Color(0x1AEE6189),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Color(0x1AEE6189),
-                            blurRadius: 80,
-                            spreadRadius: 40,
-                          ),
-                        ],
+                    Positioned(
+                      top: -96,
+                      left: -96,
+                      child: Container(
+                        width: 256,
+                        height: 256,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Color(0x1AEE6189),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Color(0x1AEE6189),
+                              blurRadius: 80,
+                              spreadRadius: 40,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
 
-                  SafeArea(
-                    child: Column(
-                      children: [
-                        const AuthTopBar(),
-                        Expanded(
-                          child: Center(
-                            child: SingleChildScrollView(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 24,
-                                vertical: 48,
-                              ),
-                              child: ConstrainedBox(
-                                constraints: const BoxConstraints(
-                                  maxWidth: 448,
+                    SafeArea(
+                      child: Column(
+                        children: [
+                          const AuthTopBar(),
+                          Expanded(
+                            child: Center(
+                              child: SingleChildScrollView(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 24,
+                                  vertical: 48,
                                 ),
-                                child: Container(
-                                  padding: const EdgeInsets.all(32),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(12),
-                                    boxShadow: const [
-                                      BoxShadow(
-                                        color: Color(0x0A000000),
-                                        blurRadius: 20,
-                                        offset: Offset(0, 4),
-                                      ),
-                                    ],
+                                child: ConstrainedBox(
+                                  constraints: const BoxConstraints(
+                                    maxWidth: 448,
                                   ),
-                                  child: Stack(
-                                    children: [
-                                      _buildHiddenInput(),
-                                      Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            AuthStrings.get(
-                                              'verificationTitle',
-                                              lang,
-                                            ),
-                                            style: GoogleFonts.manrope(
-                                              fontSize: 24,
-                                              fontWeight: FontWeight.w800,
-                                              color: const Color(0xFF191C1D),
-                                              letterSpacing: -0.5,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 12),
-                                          Text(
-                                            AuthStrings.get(
-                                              'verificationDesc6',
-                                              lang,
-                                            ),
-                                            textAlign: TextAlign.center,
-                                            style: GoogleFonts.inter(
-                                              fontSize: 16,
-                                              color: const Color(0xFF3E4A3C),
-                                              height: 1.625,
-                                            ),
-                                          ),
-                                          if (phone.isNotEmpty) ...[
-                                            const SizedBox(height: 8),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(32),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(12),
+                                      boxShadow: const [
+                                        BoxShadow(
+                                          color: Color(0x0A000000),
+                                          blurRadius: 20,
+                                          offset: Offset(0, 4),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Stack(
+                                      children: [
+                                        _buildHiddenInput(),
+                                        Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
                                             Text(
-                                              phone,
+                                              AuthStrings.get(
+                                                'verificationTitle',
+                                                lang,
+                                              ),
                                               style: GoogleFonts.manrope(
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.w700,
-                                                color: const Color(0xFF024D87),
+                                                fontSize: 24,
+                                                fontWeight: FontWeight.w800,
+                                                color: const Color(0xFF191C1D),
+                                                letterSpacing: -0.5,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 12),
+                                            Text(
+                                              AuthStrings.get(
+                                                'verificationDesc6',
+                                                lang,
+                                              ),
+                                              textAlign: TextAlign.center,
+                                              style: GoogleFonts.inter(
+                                                fontSize: 16,
+                                                color: const Color(0xFF3E4A3C),
+                                                height: 1.625,
+                                              ),
+                                            ),
+                                            if (phone.isNotEmpty) ...[
+                                              const SizedBox(height: 8),
+                                              Text(
+                                                phone,
+                                                style: GoogleFonts.manrope(
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: const Color(0xFF024D87),
+                                                ),
+                                              ),
+                                            ],
+                                            const SizedBox(height: 32),
+                                            // Keyboard fix: always request focus
+                                            // on tap so keyboard reopens every time.
+                                            GestureDetector(
+                                              onTap: () {
+                                                // Forcibly re-engage the system
+                                                // keyboard: drop focus first so
+                                                // Flutter does not skip the IME
+                                                // show call when the node already
+                                                // holds logical focus, then
+                                                // immediately request it back.
+                                                _otpFocusNode.unfocus();
+                                                Future.microtask(
+                                                  () => FocusScope.of(context)
+                                                      .requestFocus(_otpFocusNode),
+                                                );
+                                              },
+                                              child: _buildPinField(),
+                                            ),
+                                            const SizedBox(height: 32),
+                                            BlocBuilder<AuthBloc, AuthState>(
+                                              builder: (context, state) {
+                                                return PrimaryGradientButton(
+                                                  text: AuthStrings.get(
+                                                    'verifyOtp',
+                                                    lang,
+                                                  ),
+                                                  isLoading:
+                                                      state is AuthLoading,
+                                                  onPressed: () {
+                                                    if (_currentPin.length ==
+                                                        _otpLength) {
+                                                      context
+                                                          .read<AuthBloc>()
+                                                          .add(
+                                                            OtpVerified(
+                                                              otp: _currentPin,
+                                                              referenceNo:
+                                                                  referenceNo,
+                                                              phone: phone,
+                                                            ),
+                                                          );
+                                                    } else {
+                                                      ScaffoldMessenger.of(
+                                                        context,
+                                                      ).showSnackBar(
+                                                        SnackBar(
+                                                          content: Text(
+                                                            AuthStrings.get(
+                                                              'invalidOtp6',
+                                                              lang,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      );
+                                                    }
+                                                  },
+                                                );
+                                              },
+                                            ),
+                                            const SizedBox(height: 20),
+                                            // Resend OTP option
+                                            TextButton(
+                                              onPressed: () {
+                                                if (phone.isNotEmpty) {
+                                                  context.read<AuthBloc>().add(
+                                                    SendOtpRequested(phone),
+                                                  );
+                                                  setState(
+                                                    () => _currentPin = '',
+                                                  );
+                                                  ScaffoldMessenger.of(
+                                                    context,
+                                                  ).showSnackBar(
+                                                    const SnackBar(
+                                                      content: Text(
+                                                        'OTP resent successfully',
+                                                      ),
+                                                    ),
+                                                  );
+                                                }
+                                              },
+                                              child: Text(
+                                                'Resend OTP',
+                                                style: GoogleFonts.inter(
+                                                  fontSize: 14,
+                                                  color: const Color(0xFF024D87),
+                                                  fontWeight: FontWeight.w600,
+                                                ),
                                               ),
                                             ),
                                           ],
-                                          const SizedBox(height: 32),
-                                          GestureDetector(
-                                            onTap: () =>
-                                                _focusNode.requestFocus(),
-                                            child: _buildPinField(),
-                                          ),
-                                          const SizedBox(height: 32),
-                                          BlocBuilder<AuthBloc, AuthState>(
-                                            builder: (context, state) {
-                                              return PrimaryGradientButton(
-                                                text: AuthStrings.get(
-                                                  'verifyOtp',
-                                                  lang,
-                                                ),
-                                                isLoading: state is AuthLoading,
-                                                onPressed: () {
-                                                  if (_currentPin.length ==
-                                                      _otpLength) {
-                                                    context
-                                                        .read<AuthBloc>()
-                                                        .add(
-                                                          OtpVerified(
-                                                            otp: _currentPin,
-                                                            referenceNo:
-                                                                referenceNo,
-                                                            phone: phone,
-                                                          ),
-                                                        );
-                                                  } else {
-                                                    ScaffoldMessenger.of(
-                                                      context,
-                                                    ).showSnackBar(
-                                                      SnackBar(
-                                                        content: Text(
-                                                          AuthStrings.get(
-                                                            'invalidOtp6',
-                                                            lang,
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    );
-                                                  }
-                                                },
-                                              );
-                                            },
-                                          ),
-                                          const SizedBox(height: 20),
-                                          // Resend OTP option
-                                          TextButton(
-                                            onPressed: () {
-                                              if (phone.isNotEmpty) {
-                                                context.read<AuthBloc>().add(
-                                                  SendOtpRequested(phone),
-                                                );
-                                                setState(
-                                                  () => _currentPin = '',
-                                                );
-                                                ScaffoldMessenger.of(
-                                                  context,
-                                                ).showSnackBar(
-                                                  const SnackBar(
-                                                    content: Text(
-                                                      'OTP resent successfully',
-                                                    ),
-                                                  ),
-                                                );
-                                              }
-                                            },
-                                            child: Text(
-                                              'Resend OTP',
-                                              style: GoogleFonts.inter(
-                                                fontSize: 14,
-                                                color: const Color(0xFF024D87),
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
             );
           },
         ),
@@ -319,10 +342,11 @@ class _VerificationScreenState extends State<VerificationScreen> {
       height: 0,
       width: 0,
       child: TextField(
-        focusNode: _focusNode,
+        focusNode: _otpFocusNode,
         autofocus: true,
         keyboardType: TextInputType.number,
         maxLength: _otpLength,
+        enableInteractiveSelection: true,
         onChanged: (v) {
           setState(() {
             _currentPin = v;
