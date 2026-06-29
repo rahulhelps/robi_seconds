@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:quickcvpro/features/profile/presentation/bloc/profile_bloc.dart';
-import 'package:quickcvpro/features/cv_builder/presentation/screens/cv_list_screen.dart';
-import 'package:quickcvpro/features/cover_letter/presentation/screens/cover_letter_list_screen.dart';
-import 'package:quickcvpro/features/sop/presentation/screens/sop_list_screen.dart';
-import 'package:quickcvpro/features/sop/presentation/bloc/sop_bloc.dart';
+import '../../../profile/presentation/bloc/profile_bloc.dart';
+import '../../../cv_builder/presentation/screens/cv_list_screen.dart';
+import '../../../cover_letter/presentation/screens/cover_letter_list_screen.dart';
+import '../../../sop/presentation/screens/sop_list_screen.dart';
+import '../../../sop/presentation/bloc/sop_bloc.dart';
+import '../../../professional_email/presentation/screens/email_list_screen.dart';
+import '../../../professional_email/presentation/bloc/email_bloc.dart';
 import '../../../../core/network/bloc/connectivity_bloc.dart';
 import '../../../../core/network/bloc/connectivity_state.dart';
 
@@ -114,6 +116,25 @@ class QuickStatsGrid extends StatelessWidget {
                   );
                 },
               ),
+              _StatItem(
+                icon: Icons.mark_email_read_outlined,
+                iconColor: const Color(0xFF7C3AED),
+                value: '0',
+                label: 'EMAILS',
+                onTap: () {
+                  final state = context.read<ConnectivityBloc>().state;
+                  if (state is ConnectivityOffline) {
+                    _showNoInternetSnackbar(context);
+                    return;
+                  }
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const EmailListScreen(),
+                    ),
+                  );
+                },
+              ),
             ];
 
             return Column(
@@ -129,12 +150,12 @@ class QuickStatsGrid extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 GridView.count(
-                  crossAxisCount: 3,
+                  crossAxisCount: 2,
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   crossAxisSpacing: 10,
                   mainAxisSpacing: 10,
-                  childAspectRatio: 0.9,
+                  childAspectRatio: 1.25,
                   children: stats.map((s) {
                     if (s.label == 'SOPs Created') {
                       return BlocBuilder<SopBloc, SopState>(
@@ -148,6 +169,26 @@ class QuickStatsGrid extends StatelessWidget {
                               icon: s.icon,
                               iconColor: s.iconColor,
                               value: dynamicSopCount,
+                              label: s.label,
+                              onTap: s.onTap,
+                            ),
+                            isOffline: isOffline,
+                          );
+                        },
+                      );
+                    }
+                    if (s.label == 'EMAILS') {
+                      return BlocBuilder<EmailBloc, EmailState>(
+                        builder: (context, emailState) {
+                          String dynamicEmailCount = '0';
+                          if (emailState is EmailSuccess && emailState.history != null) {
+                            dynamicEmailCount = emailState.history!.length.toString();
+                          }
+                          return _StatTile(
+                            item: _StatItem(
+                              icon: s.icon,
+                              iconColor: s.iconColor,
+                              value: dynamicEmailCount,
                               label: s.label,
                               onTap: s.onTap,
                             ),

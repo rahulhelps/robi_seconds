@@ -15,6 +15,7 @@ import 'features/dashboard/presentation/screens/dashboard_screen.dart';
 import 'features/cv_builder/presentation/screens/template_gallery_screen.dart';
 import 'features/cv_builder/presentation/screens/cv_list_screen.dart';
 import 'features/cover_letter/presentation/screens/cover_letter_screen.dart';
+import 'features/professional_email/presentation/screens/email_template_screen.dart';
 
 // Data / Domain
 import 'features/auth/domain/auth_repository.dart';
@@ -29,6 +30,11 @@ import 'features/sop/data/sop_datasource.dart';
 import 'features/sop/presentation/screens/sop_template_screen.dart';
 import 'features/sop/presentation/bloc/sop_bloc.dart';
 import 'features/sop/data/sop_pdf_generator.dart';
+import 'features/professional_email/domain/email_repository.dart';
+import 'features/professional_email/data/email_repository_impl.dart';
+import 'features/professional_email/data/email_datasource.dart';
+import 'features/professional_email/data/email_pdf_generator.dart';
+import 'features/professional_email/presentation/bloc/email_bloc.dart';
 
 // BLoCs
 import 'features/auth/presentation/bloc/auth_bloc.dart';
@@ -69,6 +75,9 @@ class MyApp extends StatelessWidget {
         RepositoryProvider<SopRepository>(
           create: (_) => SopRepositoryImpl(SopDatasource()),
         ),
+        RepositoryProvider<EmailRepository>(
+          create: (_) => EmailRepositoryImpl(EmailDatasource()),
+        ),
       ],
       child: MultiBlocProvider(
         providers: [
@@ -99,6 +108,12 @@ class MyApp extends StatelessWidget {
               context.read<SopRepository>(),
               SopPdfGenerator(),
             )..add(const SopHistoryRequested()),
+          ),
+          BlocProvider(
+            create: (context) => EmailBloc(
+              context.read<EmailRepository>(),
+              EmailPdfGenerator(),
+            )..add(const EmailHistoryRequested()),
           ),
         ],
         child: BlocListener<AuthBloc, AuthState>(
@@ -162,6 +177,7 @@ class MyApp extends StatelessWidget {
               '/subscription_expired': (_) => const SubscriptionExpiredScreen(),
               '/subscription_pending': (_) => const SubscriptionPendingScreen(),
               '/sop': (_) => const SopTemplateScreen(),
+              '/email': (_) => const EmailTemplateScreen(),
             },
           ),
         ),

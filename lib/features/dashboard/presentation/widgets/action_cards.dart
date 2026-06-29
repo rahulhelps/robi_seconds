@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:quickcvpro/core/widgets/pressable_scale.dart';
 import 'package:quickcvpro/features/cover_letter/presentation/screens/cover_letter_screen.dart';
+import 'package:quickcvpro/features/professional_email/presentation/screens/email_template_screen.dart';
 import '../../../cv_builder/presentation/screens/template_gallery_screen.dart';
 
 /// 2×2 grid of quick-action cards.
@@ -67,7 +68,12 @@ class ActionCards extends StatelessWidget {
                 title: 'Professional Email',
                 subtitle: 'Create professional emails',
                 isPrimary: false,
-                onTap: () => _showComingSoon(context),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const EmailTemplateScreen(),
+                  ),
+                ),
               ),
             ),
           ],
@@ -76,35 +82,6 @@ class ActionCards extends StatelessWidget {
     );
   }
 
-  void _showComingSoon(BuildContext context) {
-    HapticFeedback.lightImpact();
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.rocket_launch_rounded,
-                  color: Colors.white, size: 18),
-              const SizedBox(width: 10),
-              Text(
-                'Coming Soon',
-                style: GoogleFonts.inter(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-          backgroundColor: const Color(0xFF191C1D),
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          duration: const Duration(seconds: 2),
-        ),
-      );
-  }
 }
 
 class _ActionCard extends StatelessWidget {
