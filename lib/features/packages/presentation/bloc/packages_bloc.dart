@@ -24,7 +24,7 @@ class PackagesBloc extends Bloc<PackagesEvent, PackagesState> {
       // Placeholder for future API / cache load
       await Future<void>.delayed(const Duration(milliseconds: 50));
       emit(const PackagesLoaded());
-    } catch (e, _) {
+    } catch (e) {
       emit(
         PackagesError(
           'We could not load packages. Check your connection and try again.',

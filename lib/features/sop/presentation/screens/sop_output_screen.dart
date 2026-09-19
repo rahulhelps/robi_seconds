@@ -1,4 +1,4 @@
-import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -7,6 +7,8 @@ import '../../../../core/services/download_service.dart';
 import '../../domain/sop_model.dart';
 import '../bloc/sop_bloc.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../data/sop_pdf_generator.dart';
+import '../../../cv_builder/presentation/screens/pdf_preview_screen.dart';
 
 class SopOutputScreen extends StatefulWidget {
   final SavedSop saved;
@@ -22,23 +24,65 @@ class SopOutputScreen extends StatefulWidget {
 
 class _SopOutputScreenState extends State<SopOutputScreen> {
   bool _isDownloading = false;
-
+  Uint8List? _cachedPdfBytes;
 
   String get _fullText =>
       widget.generatedPayload ?? '${widget.saved.header}\n\n${widget.saved.body}\n\n${widget.saved.footer}';
 
+  Future<Uint8List> _getPdfBytes() async {
+    if (widget.pdfBytes != null && widget.pdfBytes!.isNotEmpty) {
+      return widget.pdfBytes!;
+    }
+    if (_cachedPdfBytes != null && _cachedPdfBytes!.isNotEmpty) {
+      return _cachedPdfBytes!;
+    }
+    final model = widget.model ??
+        const SopModel(
+          name: 'Applicant',
+          programName: 'Master of Science',
+          universityName: 'University',
+          country: 'Abroad',
+          templateId: 'classic_academic',
+        );
+    final template = const SopTemplate(
+      id: 'classic_academic',
+      title: 'Classic Academic',
+    );
+    final bytes = await SopPdfGenerator().generatePdf(model, template, _fullText);
+    _cachedPdfBytes = bytes;
+    return bytes;
+  }
+
+  Future<void> _previewPdf() async {
+    try {
+      final bytes = await _getPdfBytes();
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PdfPreviewScreen.fromBytes(pdfBytes: bytes),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Cannot render PDF: $e')),
+        );
+      }
+    }
+  }
+
   Future<void> _download() async {
     setState(() => _isDownloading = true);
     try {
-      final bytes = widget.pdfBytes ?? Uint8List.fromList(utf8.encode(_fullText));
-      final fileExtension = widget.pdfBytes != null ? 'pdf' : 'txt';
+      final bytes = await _getPdfBytes();
       final savedPath = await DownloadService.downloadAndSaveFile(
         existingBytes: bytes,
         baseFileName: 'StatementOfPurpose',
-        fileExtension: fileExtension,
+        fileExtension: 'pdf',
       );
 
-      print('[SopOutputScreen] Saved: $savedPath');
+      debugPrint('[SopOutputScreen] Saved: $savedPath');
 
       if (mounted) {
         HapticFeedback.mediumImpact();
@@ -359,12 +403,12 @@ I look forward to the opportunity to contribute to and grow within your esteemed
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () => Navigator.popUntil(context, ModalRoute.withName('/dashboard')),
-                    icon: const Icon(Icons.dashboard_outlined, size: 18),
-                    label: Text('Dashboard', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+                    onPressed: _previewPdf,
+                    icon: const Icon(Icons.visibility_outlined, size: 18),
+                    label: Text('Preview PDF', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF191C1D),
-                      side: const BorderSide(color: Color(0xFFD8DDD8)),
+                      foregroundColor: const Color(0xFF024D87),
+                      side: const BorderSide(color: Color(0xFF024D87)),
                       padding: const EdgeInsets.symmetric(vertical: 15),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
@@ -382,7 +426,7 @@ I look forward to the opportunity to contribute to and grow within your esteemed
                           )
                         : const Icon(Icons.picture_as_pdf_rounded, size: 18),
                     label: Text(
-                      _isDownloading ? 'Saving…' : 'Download',
+                      _isDownloading ? 'Saving…' : 'Download PDF',
                       style: GoogleFonts.inter(fontWeight: FontWeight.bold),
                     ),
                     style: ElevatedButton.styleFrom(

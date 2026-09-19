@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../bloc/template_gallery_bloc.dart';
 import '../bloc/cv_bloc.dart';
 import '../widgets/gallery_hero_section.dart';
@@ -10,6 +11,9 @@ import '../widgets/template_grid.dart';
 import '../widgets/career_insights_callout.dart';
 import '../../domain/cv_repository.dart';
 import 'cv_builder_screen.dart';
+import 'ai_cv_generator_screen.dart';
+
+import '../../../../core/services/backend_service.dart';
 
 class TemplateGalleryScreen extends StatelessWidget {
   const TemplateGalleryScreen({super.key});
@@ -18,7 +22,7 @@ class TemplateGalleryScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiBlocProvider(
       providers: [
-        BlocProvider(create: (_) => TemplateGalleryBloc()),
+        BlocProvider(create: (_) => TemplateGalleryBloc(backendService: BackendService())..add(LoadTemplates())),
         BlocProvider(create: (context) => CvBloc(context.read<CvRepository>())),
       ],
       child: const _TemplateGalleryView(),
@@ -50,7 +54,6 @@ class _TemplateGalleryView extends StatelessWidget {
               child: BlocListener<TemplateGalleryBloc, TemplateGalleryState>(
                 listener: (context, state) {
                   if (state is TemplateAllowed) {
-                    // Save selected templateId to CvBloc before navigating
                     context.read<CvBloc>().add(
                       CvSetTemplateId(state.templateId.toString()),
                     );
@@ -102,6 +105,8 @@ class _TemplateGalleryView extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: const [
                           GalleryHeroSection(),
+                          SizedBox(height: 32),
+                          _AiGenerateBanner(),
                           SizedBox(height: 48),
                           GalleryFilters(),
                           SizedBox(height: 48),
@@ -117,7 +122,84 @@ class _TemplateGalleryView extends StatelessWidget {
             ),
           ],
         ),
-    ),
+      ),
+    );
+  }
+}
+
+class _AiGenerateBanner extends StatelessWidget {
+  const _AiGenerateBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF024D87), Color(0xFF28A745)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF024D87).withValues(alpha: 0.15),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Generate CV with AI',
+                  style: GoogleFonts.manrope(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Describe your career and let AI build a professional, ATS-ready CV in seconds.',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    color: Colors.white.withValues(alpha: 0.9),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => BlocProvider.value(
+                    value: context.read<CvBloc>(),
+                    child: const AiCvGeneratorScreen(),
+                  ),
+                ),
+              );
+            },
+            icon: const Icon(Icons.auto_awesome, size: 20),
+            label: Text(
+              'Try AI',
+              style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: const Color(0xFF024D87),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

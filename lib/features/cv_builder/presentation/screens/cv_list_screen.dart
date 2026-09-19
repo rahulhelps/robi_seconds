@@ -20,8 +20,14 @@ class CvListScreen extends StatelessWidget {
   }
 }
 
-class _CvListView extends StatelessWidget {
+class _CvListView extends StatefulWidget {
   const _CvListView();
+
+  @override
+  State<_CvListView> createState() => _CvListViewState();
+}
+
+class _CvListViewState extends State<_CvListView> {
 
   @override
   Widget build(BuildContext context) {
@@ -75,9 +81,9 @@ class _CvListView extends StatelessWidget {
                           final cvNumber = items.length - index;
                           final dateStr = _formatDate(item.createdAt);
                           
-                          final String templateName = item.templateId.isNotEmpty
-                              ? item.templateId.split('_').map((w) => w.isNotEmpty ? w[0].toUpperCase() + w.substring(1) : '').join(' ')
-                              : 'Classic Academic';
+                           final String templateName = item.templateName.isNotEmpty
+                               ? item.templateName
+                               : 'Classic Academic';
 
                           return Container(
                             margin: const EdgeInsets.only(bottom: 16),
@@ -190,7 +196,23 @@ class _CvListView extends StatelessWidget {
                                             borderRadius: BorderRadius.circular(8),
                                             child: InkWell(
                                               borderRadius: BorderRadius.circular(8),
-                                              onTap: () {},
+                                              onTap: () async {
+                                                final bloc = context.read<CvBloc>();
+                                                final confirm = await showDialog<bool>(
+                                                  context: context,
+                                                  builder: (ctx) => AlertDialog(
+                                                    title: const Text('Delete CV'),
+                                                    content: const Text('Are you sure you want to delete this CV?'),
+                                                    actions: [
+                                                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                                                      TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete')),
+                                                    ],
+                                                  ),
+                                                );
+                                                if (confirm == true && mounted) {
+                                                  bloc.add(DeleteCv(item.id));
+                                                }
+                                              },
                                               child: const Padding(
                                                 padding: EdgeInsets.all(8.0),
                                                 child: Icon(Icons.delete_outline_rounded, color: Color(0xFFBA1A1A), size: 20),

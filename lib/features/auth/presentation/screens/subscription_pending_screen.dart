@@ -142,7 +142,7 @@ class _SubscriptionPendingScreenState
                       // Pulsing ring animation
                       AnimatedBuilder(
                         animation: _pulseController,
-                        builder: (_, __) {
+                        builder: (_, _) {
                           final t = _pulseController.value;
                           return Stack(
                             alignment: Alignment.center,

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:quickcvpro/features/packages/presentation/screens/packages_screen.dart';
+import 'package:quickcvpro/features/mock_test/presentation/screens/mock_test_screen.dart';
 import 'package:quickcvpro/features/payments/presentation/screens/payments_screen.dart';
 import 'package:quickcvpro/features/profile/presentation/screens/dashboard_screen.dart';
+import 'package:quickcvpro/features/documents/presentation/screens/documents_hub_screen.dart';
 import '../../../../core/widgets/no_internet_widget.dart';
 import '../../../../core/network/bloc/connectivity_bloc.dart';
 import '../../../../core/network/bloc/connectivity_state.dart';
@@ -17,7 +17,7 @@ import '../widgets/app_top_bar.dart';
 import '../widgets/dashboard_bottom_nav_bar.dart';
 import '../widgets/profile_quick_card.dart';
 import '../widgets/quick_stats_grid.dart';
-
+import '../widgets/featured_document_card.dart';
 
 class QuickCVDashboardScreen extends StatelessWidget {
   const QuickCVDashboardScreen({super.key});
@@ -26,7 +26,6 @@ class QuickCVDashboardScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return const _DashboardView();
   }
-
 }
 
 class _DashboardView extends StatelessWidget {
@@ -46,16 +45,16 @@ class _DashboardView extends StatelessWidget {
       child: BlocBuilder<DashboardBloc, DashboardState>(
         builder: (context, state) {
           return Scaffold(
-            backgroundColor: const Color(0xFFF8F9FA),
+            backgroundColor: const Color(0xFFFAFAFC),
             appBar: AppBar(
-              backgroundColor: const Color(0xFF024D87),
+              backgroundColor: Colors.white,
               systemOverlayStyle: const SystemUiOverlayStyle(
-                statusBarColor: Color(0xFF024D87),
-                statusBarIconBrightness: Brightness.light,
-                statusBarBrightness: Brightness.dark,
+                statusBarColor: Colors.transparent,
+                statusBarIconBrightness: Brightness.dark,
+                statusBarBrightness: Brightness.light,
               ),
               elevation: 0,
-              toolbarHeight: 64,
+              toolbarHeight: 68,
               automaticallyImplyLeading: false,
               titleSpacing: 0,
               title: const AppTopBar(),
@@ -68,17 +67,18 @@ class _DashboardView extends StatelessWidget {
                     index: state.selectedNavIndex,
                     children: const [
                       _HomeTab(),
-                      ProfileDashboardScreen(),
-                      ServicesScreen(),
+                      DocumentsHubScreen(),
                       PaymentsScreen(),
+                      MockTestScreen(),
+                      ProfileDashboardScreen(),
                     ],
                   ),
                 ),
               ],
             ),
           );
-      },
-    ),
+        },
+      ),
     );
   }
 }
@@ -92,12 +92,6 @@ class _HomeTab extends StatelessWidget {
       builder: (context, connectivityState) {
         final isOffline = connectivityState is ConnectivityOffline;
 
-        if (connectivityState is ConnectivityOnline) {
-          print("Internet: Online");
-        } else if (isOffline) {
-          print("Internet: Offline");
-        }
-
         return Column(
           children: [
             AnimatedInternetBanner(
@@ -109,31 +103,25 @@ class _HomeTab extends StatelessWidget {
             ),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                padding: const EdgeInsets.fromLTRB(18, 14, 18, 24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 6),
-                    Text(
-                      'Build and manage your career-defining CV.',
-                      style: GoogleFonts.inter(
-                        fontSize: 15,
-                        color: const Color(0xFF3E4A3C),
-                      ),
-                    ),
-                    const SizedBox(height: 28),
+                  children: const [
+                    // 1. Profile Strength Gradient Card (Matching Landing Mockup)
+                    ProfileQuickCard(),
+                    SizedBox(height: 12),
 
-                    // Action cards
-                    const ActionCards(),
-                    const SizedBox(height: 10),
+                    // 2. 4 Quick Stats Pills (Matching Landing Mockup)
+                    QuickStatsGrid(),
+                    SizedBox(height: 14),
 
-                    // Profile quick card
-                    const ProfileQuickCard(),
-                    const SizedBox(height: 10),
+                    // 3. Featured Document Card + Create Button (Matching Landing Mockup)
+                    FeaturedDocumentCard(),
+                    SizedBox(height: 18),
 
-                    // Quick stats
-                    const QuickStatsGrid(),
-                    const SizedBox(height: 28),
+                    // 4. Action Cards Grid (Career Suite Tools)
+                    ActionCards(),
+                    SizedBox(height: 20),
                   ],
                 ),
               ),

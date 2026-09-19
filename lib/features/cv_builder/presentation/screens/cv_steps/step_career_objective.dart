@@ -2,70 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../bloc/cv_bloc.dart';
+import '../../../../../core/widgets/cv_form_widgets.dart';
 
 class StepCareerObjective extends StatelessWidget {
   final VoidCallback onNext;
   const StepCareerObjective({super.key, required this.onNext});
-
-  @override
-  Widget build(BuildContext context) {
-    return _StepScaffold(
-      title: 'What drives your career?',
-      subtitle: 'Write a short objective that summarises your professional goals.',
-      onNext: onNext,
-      child: _CareerObjectiveField(),
-    );
-  }
-}
-
-class _CareerObjectiveField extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<CvBloc, CvState>(
-      builder: (context, state) {
-        return TextFormField(
-          maxLines: 6,
-          initialValue: state.model.careerObjective,
-          style: GoogleFonts.inter(color: const Color(0xFF191C1D)),
-          decoration: InputDecoration(
-            hintText:
-                'e.g. A results-driven software engineer with 3+ years of experience building scalable web applications...',
-            hintStyle: GoogleFonts.inter(color: Colors.grey),
-            filled: true,
-            fillColor: Colors.white,
-            errorText: state.showErrors && state.model.careerObjective.trim().isEmpty ? 'Required' : null,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFBDCAB9)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFF024D87), width: 2),
-            ),
-            contentPadding: const EdgeInsets.all(16),
-          ),
-          onChanged: (v) =>
-              context.read<CvBloc>().add(CvUpdateCareerObjective(v)),
-        );
-      },
-    );
-  }
-}
-
-// ── Shared step scaffold ──────────────────────────────────────────────────────
-
-class _StepScaffold extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final Widget child;
-  final VoidCallback onNext;
-
-  const _StepScaffold({
-    required this.title,
-    required this.subtitle,
-    required this.child,
-    required this.onNext,
-  });
 
   @override
   Widget build(BuildContext context) {
@@ -77,25 +18,15 @@ class _StepScaffold extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                title,
-                style: GoogleFonts.manrope(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
-                  color: const Color(0xFF191C1D),
-                  letterSpacing: -0.5,
-                ),
+              const CvStepHeader(
+                title: 'Career Objective',
+                subtitle:
+                    'Write a compelling summary that highlights your key strengths and professional ambition.',
+                icon: Icons.flag_rounded,
               ),
-              const SizedBox(height: 8),
-              Text(
-                subtitle,
-                style: GoogleFonts.inter(
-                    fontSize: 15, color: const Color(0xFF3E4A3C)),
-              ),
+              const _CareerObjectiveField(),
               const SizedBox(height: 32),
-              child,
-              const SizedBox(height: 32),
-              _NextButton(onNext: onNext),
+              CvNextButton(onNext: onNext),
             ],
           ),
         ),
@@ -104,36 +35,88 @@ class _StepScaffold extends StatelessWidget {
   }
 }
 
-class _NextButton extends StatelessWidget {
-  final VoidCallback onNext;
-  const _NextButton({required this.onNext});
+class _CareerObjectiveField extends StatelessWidget {
+  const _CareerObjectiveField();
 
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<CvBloc, CvState>(
       builder: (context, state) {
-        final isSubmitting = state is CvLoading;
-        return SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: isSubmitting ? null : onNext,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF024D87),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 18),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-              elevation: 0,
+        final hasError = state.showErrors && state.model.careerObjective.trim().isEmpty;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(
+                  'Objective Statement',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF2D3748),
+                  ),
+                ),
+                Text(
+                  ' *',
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFFE53E3E),
+                  ),
+                ),
+              ],
             ),
-            child: Text(
-              'Continue',
+            const SizedBox(height: 8),
+            TextFormField(
+              maxLines: 7,
+              initialValue: state.model.careerObjective,
               style: GoogleFonts.inter(
-                  fontSize: 16, fontWeight: FontWeight.bold),
+                color: const Color(0xFF1A202C),
+                fontSize: 14,
+                height: 1.5,
+              ),
+              decoration: InputDecoration(
+                hintText:
+                    'e.g. A passionate and results-oriented professional with a strong track record of success, seeking to contribute technical expertise and innovative problem-solving skills in a forward-thinking organization...',
+                hintStyle: GoogleFonts.inter(
+                  color: const Color(0xFFA0AEC0),
+                  fontSize: 14,
+                ),
+                filled: true,
+                fillColor: hasError ? const Color(0xFFFFF5F5) : const Color(0xFFF7FAFC),
+                errorText: hasError ? 'Career objective is required' : null,
+                errorStyle: GoogleFonts.inter(
+                  fontSize: 12,
+                  color: const Color(0xFFE53E3E),
+                  fontWeight: FontWeight.w500,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(
+                    color: hasError ? const Color(0xFFFEB2B2) : const Color(0xFFE2E8F0),
+                    width: 1.2,
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(
+                    color: hasError ? const Color(0xFFE53E3E) : const Color(0xFF024D87),
+                    width: 2,
+                  ),
+                ),
+                contentPadding: const EdgeInsets.all(18),
+              ),
+              onChanged: (v) =>
+                  context.read<CvBloc>().add(CvUpdateCareerObjective(v)),
             ),
-          ),
+          ],
         );
       },
     );
   }
 }
-

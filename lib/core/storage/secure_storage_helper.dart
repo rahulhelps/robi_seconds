@@ -8,13 +8,13 @@ class SecureStorageHelper {
 
   // ── Token delegates ───────────────────────────────────────────────────────
 
-  static Future<void> saveTokens({
-    required String accessToken,
-    required String refreshToken,
-  }) =>
+  static Future<void> saveTokens(
+    String accessToken,
+    String refreshToken,
+  ) =>
       TokenManager.saveTokens(
-        accessToken: accessToken,
-        refreshToken: refreshToken,
+        accessToken,
+        refreshToken,
       );
 
   static Future<String?> getAccessToken() => TokenManager.getAccessToken();

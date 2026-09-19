@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/services/auth_service.dart';
 import '../../../../core/services/bdapps_service.dart';
@@ -49,9 +50,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     emit(AuthLoading());
     try {
-      print("AuthBloc: calling AuthService");
+      debugPrint("AuthBloc: calling AuthService");
       await _authRepository.phoneAuth(event.phone);
-      print("AuthService method triggered");
+      debugPrint("AuthService method triggered");
 
       final user = await AuthService.getCurrentUser();
       

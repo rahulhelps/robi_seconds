@@ -22,3 +22,9 @@ class UploadAvatarEvent extends ProfileEvent {
   final String mimeType;
   const UploadAvatarEvent(this.filePath, this.fileName, this.mimeType);
 }
+
+/// Request to update profile details.
+class UpdateProfileEvent extends ProfileEvent {
+  final Map<String, dynamic> data;
+  const UpdateProfileEvent(this.data);
+}

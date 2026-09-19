@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -29,32 +30,44 @@ class PdfPreviewScreen extends StatefulWidget {
   /// Bearer token injected into [SfPdfViewer.network] headers (DB mode).
   final String? bearerToken;
 
+  /// Locally generated PDF bytes.
+  final Uint8List? localPdfBytes;
+
   const PdfPreviewScreen({
     super.key,
     this.pdfUrl,
     this.cvId,
     this.bearerToken,
+    this.localPdfBytes,
   }) : assert(
-          pdfUrl != null || cvId != null,
-          'Provide either pdfUrl (legacy) or cvId (DB mode)',
+          pdfUrl != null || cvId != null || localPdfBytes != null,
+          'Provide either pdfUrl (legacy), cvId (DB mode), or localPdfBytes',
         );
 
   /// Convenience constructor for the DB-based view mode.
   const PdfPreviewScreen.fromId({
     super.key,
-    required String cvId,
-    required String bearerToken,
-  })  : cvId = cvId,
-        bearerToken = bearerToken,
-        pdfUrl = null;
+    required String this.cvId,
+    required String this.bearerToken,
+  })  : pdfUrl = null,
+        localPdfBytes = null;
+
+  /// Convenience constructor when PDF bytes are already available locally.
+  const PdfPreviewScreen.fromBytes({
+    super.key,
+    required Uint8List pdfBytes,
+  })  : pdfUrl = null,
+        cvId = null,
+        bearerToken = null,
+        localPdfBytes = pdfBytes;
 
   /// Convenience constructor for the legacy generate flow.
   const PdfPreviewScreen.fromUrl({
     super.key,
-    required String pdfUrl,
-  })  : pdfUrl = pdfUrl,
-        cvId = null,
-        bearerToken = null;
+    required String this.pdfUrl,
+  })  : cvId = null,
+        bearerToken = null,
+        localPdfBytes = null;
 
   @override
   State<PdfPreviewScreen> createState() => _PdfPreviewScreenState();
@@ -63,7 +76,7 @@ class PdfPreviewScreen extends StatefulWidget {
 class _PdfPreviewScreenState extends State<PdfPreviewScreen> {
   // ── Constants ──────────────────────────────────────────────────────────────
 
-  static const _serverBase = ApiConstants.baseUrl;
+  String get _serverBase => ApiConstants.baseUrl;
 
   // ── State ──────────────────────────────────────────────────────────────────
 
@@ -77,6 +90,7 @@ class _PdfPreviewScreenState extends State<PdfPreviewScreen> {
   // ── Derived helpers ────────────────────────────────────────────────────────
 
   bool get _isDbMode => widget.cvId != null;
+  bool get _isLocalMode => widget.localPdfBytes != null;
 
   String get _networkUrl =>
       '$_serverBase/cvs/${widget.cvId}/view';
@@ -86,10 +100,10 @@ class _PdfPreviewScreenState extends State<PdfPreviewScreen> {
   @override
   void initState() {
     super.initState();
-    if (_isDbMode) {
-      // The render is queued async on the server; the first view can return
-      // 409 ("still being generated"). Fetch bytes with a short retry, then
-      // render via SfPdfViewer.memory (same path as legacy mode).
+    if (_isLocalMode) {
+      _pdfBytes = widget.localPdfBytes;
+      _isLoadingPdf = false;
+    } else if (_isDbMode) {
       _loadDbPdfWithRetry();
     } else {
       _loadPdfBytes();
@@ -112,7 +126,9 @@ class _PdfPreviewScreenState extends State<PdfPreviewScreen> {
     try {
       for (var attempt = 1; attempt <= maxAttempts; attempt++) {
         final response = await AuthService.authenticatedGetRaw(_networkUrl);
-        print('[PdfPreviewScreen] DB view attempt $attempt → ${response.statusCode}');
+        if (kDebugMode) {
+          print('[PdfPreviewScreen] DB view attempt $attempt → ${response.statusCode}');
+        }
 
         if (response.statusCode == 200) {
           final bytes = response.bodyBytes;
@@ -138,7 +154,9 @@ class _PdfPreviewScreenState extends State<PdfPreviewScreen> {
       }
       throw 'Your CV is taking longer than expected to generate. Please try again in a moment.';
     } catch (e) {
-      print('[PdfPreviewScreen] DB view ERROR: $e');
+      if (kDebugMode) {
+        print('[PdfPreviewScreen] DB view ERROR: $e');
+      }
       if (mounted) {
         setState(() {
           _loadError = e.toString();
@@ -159,14 +177,18 @@ class _PdfPreviewScreenState extends State<PdfPreviewScreen> {
     });
 
     final url = widget.pdfUrl!;
-    print('[PdfPreviewScreen] Fetching (legacy): $url');
+    if (kDebugMode) {
+      print('[PdfPreviewScreen] Fetching (legacy): $url');
+    }
 
     try {
       final response = await http
           .get(Uri.parse(url))
           .timeout(const Duration(seconds: 30));
 
-      print('[PdfPreviewScreen] Status: ${response.statusCode}');
+      if (kDebugMode) {
+        print('[PdfPreviewScreen] Status: ${response.statusCode}');
+      }
 
       if (response.statusCode != 200) {
         throw 'Server returned ${response.statusCode}. Check backend.';
@@ -190,7 +212,9 @@ class _PdfPreviewScreenState extends State<PdfPreviewScreen> {
         });
       }
     } catch (e) {
-      print('[PdfPreviewScreen] ERROR: $e');
+      if (kDebugMode) {
+        print('[PdfPreviewScreen] ERROR: $e');
+      }
       if (mounted) {
         setState(() {
           _loadError = e.toString();
@@ -351,11 +375,15 @@ class _PdfPreviewScreenState extends State<PdfPreviewScreen> {
             canShowScrollStatus: true,
             canShowPaginationDialog: true,
             onDocumentLoaded: (details) {
-              print('[PdfPreviewScreen] Rendered ${details.document.pages.count} pages ✅');
+              if (kDebugMode) {
+                print('[PdfPreviewScreen] Rendered ${details.document.pages.count} pages ✅');
+              }
               if (mounted) setState(() => _isLoadingPdf = false);
             },
             onDocumentLoadFailed: (details) {
-              print('[PdfPreviewScreen] Render error: ${details.error}');
+              if (kDebugMode) {
+                print('[PdfPreviewScreen] Render error: ${details.error}');
+              }
               if (mounted) {
                 setState(() {
                   _loadError = details.description;

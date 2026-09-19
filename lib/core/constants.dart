@@ -1,7 +1,13 @@
+
 class ApiConstants {
   ApiConstants._();
 
-  /// Single source of truth for the platform_api base URL.
-  /// Change this one line to point the whole app at a different backend.
-  static const String baseUrl = 'https://api.thinkfastbd.com/api/v1';
+  static String get baseUrl {
+    final fromEnv = const String.fromEnvironment('API_BASE_URL');
+    if (fromEnv.isNotEmpty) return fromEnv;
+
+    return 'https://cvbuilder.kidsgrow.com.bd/api/v1';
+  }
 }
+
+

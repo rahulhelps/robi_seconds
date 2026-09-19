@@ -16,6 +16,9 @@ import 'features/cv_builder/presentation/screens/template_gallery_screen.dart';
 import 'features/cv_builder/presentation/screens/cv_list_screen.dart';
 import 'features/cover_letter/presentation/screens/cover_letter_screen.dart';
 import 'features/professional_email/presentation/screens/email_template_screen.dart';
+import 'features/mock_test/presentation/screens/mock_test_screen.dart';
+import 'core/error_screens/error_screens.dart';
+import 'core/network/api_client.dart';
 
 // Data / Domain
 import 'features/auth/domain/auth_repository.dart';
@@ -35,6 +38,12 @@ import 'features/professional_email/data/email_repository_impl.dart';
 import 'features/professional_email/data/email_datasource.dart';
 import 'features/professional_email/data/email_pdf_generator.dart';
 import 'features/professional_email/presentation/bloc/email_bloc.dart';
+import 'features/profile/presentation/screens/profile_settings_screen.dart';
+import 'features/profile/presentation/screens/my_documents_screen.dart';
+
+import 'features/documents/domain/document_repository.dart';
+import 'features/documents/data/documents_datasource.dart';
+import 'features/documents/presentation/bloc/documents_bloc.dart';
 
 // BLoCs
 import 'features/auth/presentation/bloc/auth_bloc.dart';
@@ -46,6 +55,7 @@ import 'features/payments/presentation/bloc/payment_bloc.dart';
 import 'core/network/bloc/connectivity_bloc.dart';
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  ApiClient.initialize();
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
@@ -61,6 +71,7 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final navigatorKey = GlobalKey<NavigatorState>();
     return MultiRepositoryProvider(
       providers: [
         RepositoryProvider(
@@ -77,6 +88,9 @@ class MyApp extends StatelessWidget {
         ),
         RepositoryProvider<EmailRepository>(
           create: (_) => EmailRepositoryImpl(EmailDatasource()),
+        ),
+        RepositoryProvider<DocumentRepository>(
+          create: (_) => DocumentRepository(DocumentsDatasource()),
         ),
       ],
       child: MultiBlocProvider(
@@ -115,16 +129,25 @@ class MyApp extends StatelessWidget {
               EmailPdfGenerator(),
             )..add(const EmailHistoryRequested()),
           ),
+          BlocProvider(
+            create: (context) => DocumentsBloc(
+              context.read<DocumentRepository>(),
+            )..add(const DocumentsFetchRequested()),
+          ),
         ],
-        child: BlocListener<AuthBloc, AuthState>(
+          child: BlocListener<AuthBloc, AuthState>(
           listener: (context, state) {
             if (state is AuthUnauthenticated) {
               context.read<ProfileBloc>().add(const ResetProfile());
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                navigatorKey.currentState?.pushNamedAndRemoveUntil('/splash', (route) => false);
+              });
             } else if (state is AuthAuthenticated) {
               context.read<ProfileBloc>().add(const FetchProfile());
             }
           },
           child: MaterialApp(
+            navigatorKey: navigatorKey,
             debugShowCheckedModeBanner: false,
             title: 'QuickCV Pro',
             builder: (context, child) {
@@ -178,6 +201,13 @@ class MyApp extends StatelessWidget {
               '/subscription_pending': (_) => const SubscriptionPendingScreen(),
               '/sop': (_) => const SopTemplateScreen(),
               '/email': (_) => const EmailTemplateScreen(),
+              '/mock_test': (_) => const MockTestScreen(),
+              '/profile_settings': (_) => const ProfileSettingsScreen(),
+              '/my_documents': (_) => const MyDocumentsScreen(),
+              '/error/403': (_) => const ForbiddenScreen(),
+              '/error/404': (_) => const NotFoundScreen(),
+              '/error/419': (_) => const PageExpiredScreen(),
+              '/error/500': (_) => const ServerErrorScreen(),
             },
           ),
         ),

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -210,65 +211,76 @@ class _PhoneInputCardState extends State<PhoneInputCard> {
 
                           final localNumber = _phoneController.text.trim();
 
-                          if (localNumber.isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(AuthStrings.get('enterPhone', lang)),
-                              ),
-                            );
-                            return;
+                           if (localNumber.isEmpty) {
+                             ScaffoldMessenger.of(context).showSnackBar(
+                               SnackBar(
+                                 content: Text(AuthStrings.get('enterPhone', lang)),
+                               ),
+                             );
+                             return;
+                           }
+
+                           if (!RegExp(r'^01[3-9][0-9]{8}$').hasMatch(localNumber)) {
+                             ScaffoldMessenger.of(context).showSnackBar(
+                               SnackBar(
+                                 content: Text(AuthStrings.get('invalidPhone', lang)),
+                               ),
+                             );
+                             return;
+                           }
+
+                          if (kDebugMode) {
+                            print('[PhoneInputCard] Sending phone: $localNumber');
                           }
 
-                          if (!RegExp(r'^01[3-9][0-9]{8}$').hasMatch(localNumber)) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(AuthStrings.get('invalidPhone', lang)),
-                              ),
-                            );
-                            return;
-                          }
-
-                          print('[PhoneInputCard] Sending phone: $localNumber');
-                          
-                          if (localNumber.startsWith('018') ||
-                              localNumber.startsWith('016')) {
-                            
-                            print("Using existing check_subscription result");
-                            
-                            // Use existing stored status
-                            final isRegistered = await UserStorage.getSubscriptionStatus();
-                            
-                            if (isRegistered) {
-                              print("Robi/Airtel REGISTERED → direct login");
-                              try {
-                                // Call auth API directly
-                                await AuthService.loginWithPhone(localNumber);
-                                
-                                // Tokens and user data are already saved inside loginWithPhone()
-                                
-                                if (context.mounted) {
-                                  Navigator.pushNamed(context, '/email_registration');
-                                }
-                              } catch (e) {
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text(e.toString())),
-                                  );
-                                }
+                            if (localNumber.startsWith('018') ||
+                                localNumber.startsWith('016')) {
+                              
+                              if (kDebugMode) {
+                                print("Using existing check_subscription result");
                               }
-                              return; // STOP execution
+                              
+                              // Use existing stored status
+                             final isRegistered = await UserStorage.getSubscriptionStatus();
+                             if (!context.mounted) return;
+                              
+                              if (isRegistered) {
+                                if (kDebugMode) {
+                                  print("Robi/Airtel REGISTERED → direct login");
+                                }
+                                try {
+                                  // Call auth API directly
+                                  await AuthService.loginWithPhone(localNumber);
+                                  
+                                  // Tokens and user data are already saved inside loginWithPhone()
+                                  
+                                  if (context.mounted) {
+                                    Navigator.pushNamed(context, '/email_registration');
+                                  }
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text(e.toString())),
+                                    );
+                                  }
+                                }
+                                return; // STOP execution
+                              } else {
+                                if (kDebugMode) {
+                                  print("Robi/Airtel UNREGISTERED → OTP");
+                                }
+                                context
+                                    .read<AuthBloc>()
+                                    .add(SendOtpRequested(localNumber));
+                              }
                             } else {
-                              print("Robi/Airtel UNREGISTERED → OTP");
+                              if (kDebugMode) {
+                                print("Other operator → unchanged");
+                              }
                               context
                                   .read<AuthBloc>()
-                                  .add(SendOtpRequested(localNumber));
+                                  .add(SubmitPhoneNumber(localNumber));
                             }
-                          } else {
-                            print("Other operator → unchanged");
-                            context
-                                .read<AuthBloc>()
-                                .add(SubmitPhoneNumber(localNumber));
-                          }
                         },
                          );
                     },

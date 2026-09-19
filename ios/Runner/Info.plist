@@ -43,7 +43,18 @@
 	</array>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
-	<key>UIApplicationSupportsIndirectInputEvents</key>
-	<true/>
-</dict>
-</plist>
+ 	<key>UIApplicationSupportsIndirectInputEvents</key>
+ 	<true/>
+ 	<key>CFBundleURLTypes</key>
+ 	<array>
+ 		<dict>
+ 			<key>CFBundleURLSchemes</key>
+ 			<array>
+ 				<string>quickcvpro</string>
+ 			</array>
+ 			<key>CFBundleURLName</key>
+ 			<string>com.quickcvpro.payment</string>
+ 		</dict>
+ 	</array>
+ </dict>
+ </plist>

@@ -157,23 +157,15 @@ class _SplashScreenState extends State<SplashScreen>
   Widget build(BuildContext context) {
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
-        if (!mounted) return;
+        if (!context.mounted) return;
         if (state is AuthAuthenticated) {
           Navigator.pushReplacementNamed(context, '/dashboard');
+        } else if (state is AuthEmailRequired) {
+          Navigator.pushReplacementNamed(context, '/email_registration');
         } else if (state is AuthSubscriptionExpired) {
-          Navigator.pushReplacementNamed(
-            context,
-            '/subscription_expired',
-            arguments: {'phone': state.phone},
-          );
+          Navigator.pushReplacementNamed(context, '/subscription_expired');
         } else if (state is AuthSubscriptionPending) {
-          Navigator.pushReplacementNamed(
-            context,
-            '/subscription_pending',
-            arguments: {'phone': state.phone},
-          );
-        } else if (state is AuthUnauthenticated) {
-          Navigator.pushReplacementNamed(context, '/auth');
+          Navigator.pushReplacementNamed(context, '/subscription_pending');
         }
       },
       child: AnnotatedRegion<SystemUiOverlayStyle>(
@@ -236,7 +228,7 @@ class _SplashScreenState extends State<SplashScreen>
                           // Outer ring pulse
                           AnimatedBuilder(
                             animation: _ringController,
-                            builder: (_, __) {
+                            builder: (_, _) {
                               final t = _ringController.value;
                               return Opacity(
                                 opacity: (1 - t) * 0.35,
@@ -260,7 +252,7 @@ class _SplashScreenState extends State<SplashScreen>
                           // Middle ring pulse (offset phase)
                           AnimatedBuilder(
                             animation: _ringController,
-                            builder: (_, __) {
+                            builder: (_, _) {
                               final t = (_ringController.value + 0.4) % 1.0;
                               return Opacity(
                                 opacity: (1 - t) * 0.2,
@@ -393,7 +385,7 @@ class _SplashScreenState extends State<SplashScreen>
                       children: [
                         AnimatedBuilder(
                           animation: _progressValue,
-                          builder: (_, __) {
+                          builder: (_, _) {
                             return ClipRRect(
                               borderRadius: BorderRadius.circular(10),
                               child: LinearProgressIndicator(
@@ -430,9 +422,9 @@ class _SplashScreenState extends State<SplashScreen>
           ],
         ),
       ),
-      ),
-    ), // end BlocListener
-  );
+    ),
+  ),
+);
 }
 }
 

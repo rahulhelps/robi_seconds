@@ -1,13 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
-import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:http/http.dart' as http;
 import '../constants.dart';
 import '../storage/token_manager.dart';
 import '../storage/user_storage.dart';
 import 'auth_service.dart';
 
-const _baseUrl = ApiConstants.baseUrl;
+String get _baseUrl => ApiConstants.baseUrl;
 
 // ── Result models ─────────────────────────────────────────────────────────────
 
@@ -83,8 +82,6 @@ class BDAppsService {
           )
           .timeout(const Duration(seconds: 15));
 
-      debugPrint('[OTP] sendOtp ← ${response.statusCode} ${response.body}');
-
       final body = jsonDecode(response.body) as Map<String, dynamic>;
       final success = body['success'] == true;
       final data = body['data'] as Map<String, dynamic>?;
@@ -112,7 +109,6 @@ class BDAppsService {
         statusDetail: 'Request timed out. Please try again.',
       );
     } catch (e) {
-      debugPrint('[OTP] sendOtp ✗ $e');
       return const BDAppsOtpResult(
         success: false,
         statusDetail: 'Network error. Please check your connection.',
@@ -145,8 +141,6 @@ class BDAppsService {
           )
           .timeout(const Duration(seconds: 15));
 
-      debugPrint('[OTP] verifyOtp ← ${response.statusCode} ${response.body}');
-
       final body = jsonDecode(response.body) as Map<String, dynamic>;
       final data = body['data'] as Map<String, dynamic>?;
 
@@ -155,8 +149,8 @@ class BDAppsService {
         final refreshToken = data['refreshToken'] as String?;
         if (accessToken != null && refreshToken != null) {
           await TokenManager.saveTokens(
-            accessToken: accessToken,
-            refreshToken: refreshToken,
+            accessToken,
+            refreshToken,
           );
         }
         final user = data['user'] as Map<String, dynamic>?;
@@ -175,7 +169,6 @@ class BDAppsService {
         errorMessage: 'Request timed out. Please try again.',
       );
     } catch (e) {
-      debugPrint('[OTP] verifyOtp ✗ $e');
       return const BDAppsVerifyResult(
         success: false,
         errorMessage: 'Network error. Please check your connection.',
@@ -193,8 +186,6 @@ class BDAppsService {
     final data = res['data'] as Map<String, dynamic>?;
     final active = data?['isSubscriptionActive'] == true;
 
-    debugPrint('[OTP] checkSubscription ← isSubscriptionActive=$active');
-
     return BDAppsSubscriptionResult(
       status: active
           ? BDAppsSubscriptionStatus.registered
@@ -209,7 +200,6 @@ class BDAppsService {
   static Future<BDAppsUnsubscribeResult> unsubscribe(String phone) async {
     try {
       final res = await AuthService.authenticatedPost('/auth/unsubscribe', {});
-      debugPrint('[OTP] unsubscribe ← $res');
 
       if (res['success'] == true) {
         return const BDAppsUnsubscribeResult(success: true);
@@ -224,7 +214,6 @@ class BDAppsService {
         errorMessage: 'Request timed out. Please try again.',
       );
     } catch (e) {
-      debugPrint('[OTP] unsubscribe ✗ $e');
       return BDAppsUnsubscribeResult(
         success: false,
         errorMessage: e.toString(),

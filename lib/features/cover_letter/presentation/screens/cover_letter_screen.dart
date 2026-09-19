@@ -1,8 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../domain/cover_letter_repository.dart';
+import '../../domain/cover_letter_model.dart';
 import '../bloc/cover_letter_bloc.dart';
 import 'cover_letter_output_screen.dart';
 import '../../../profile/presentation/bloc/profile_bloc.dart';
@@ -130,7 +132,9 @@ class _CoverLetterViewState extends State<_CoverLetterView> {
         //     );
         // }
         if (state is CoverLetterSuccess) {
-          print("Cover Letter created → refreshing profile");
+          if (kDebugMode) {
+            print("Cover Letter created → refreshing profile");
+          }
           context.read<ProfileBloc>().add(const FetchProfile(forceNetwork: true));
 
           Navigator.pushReplacement(
@@ -367,20 +371,303 @@ class _EditorField extends StatelessWidget {
 
 // ── Template selector bottom sheet ────────────────────────────────────────────
 
-class _TemplateSheet extends StatelessWidget {
+class _TemplateSheet extends StatefulWidget {
   final void Function(String id, int index) onSelected;
   const _TemplateSheet({required this.onSelected});
 
   @override
+  State<_TemplateSheet> createState() => _TemplateSheetState();
+}
+
+class _TemplateSheetState extends State<_TemplateSheet> {
+  String _selectedCategory = 'All';
+
+  static const List<String> _categories = [
+    'All',
+    'Tech & AI',
+    'Corporate & Finance',
+    'Creative & Growth',
+    'Healthcare & Service',
+    'Remote & Freelance',
+    'Entry & Career Shift',
+  ];
+
+  Color _accentFor(String id) {
+    switch (id) {
+      case 'data_science_ai':
+      case 'tech_developer': return const Color(0xFF10B981);
+      case 'finance_banking': return const Color(0xFFB45309);
+      case 'executive_leadership':
+      case 'modern_corporate': return const Color(0xFF0F172A);
+      case 'creative_design':
+      case 'marketing_growth': return const Color(0xFF7C3AED);
+      case 'healthcare_nursing': return const Color(0xFF0D9488);
+      case 'remote_distributed':
+      case 'freelancer_consultant': return const Color(0xFF0284C7);
+      case 'entry_level_graduate': return const Color(0xFF2563EB);
+      case 'academic_research': return const Color(0xFF1E3A8A);
+      default: return const Color(0xFF024D87);
+    }
+  }
+
+  IconData _iconFor(String id) {
+    switch (id) {
+      case 'data_science_ai': return Icons.psychology_outlined;
+      case 'tech_developer': return Icons.code_rounded;
+      case 'finance_banking': return Icons.account_balance_outlined;
+      case 'executive_leadership': return Icons.workspace_premium_outlined;
+      case 'modern_corporate': return Icons.business_outlined;
+      case 'creative_design': return Icons.palette_outlined;
+      case 'marketing_growth': return Icons.trending_up_rounded;
+      case 'healthcare_nursing': return Icons.local_hospital_outlined;
+      case 'remote_distributed': return Icons.language_rounded;
+      case 'freelancer_consultant': return Icons.laptop_chromebook_rounded;
+      case 'entry_level_graduate': return Icons.school_outlined;
+      case 'academic_research': return Icons.history_edu_rounded;
+      case 'career_change': return Icons.sync_alt_rounded;
+      case 'sales_bizdev': return Icons.handshake_outlined;
+      case 'customer_success': return Icons.support_agent_rounded;
+      default: return Icons.description_outlined;
+    }
+  }
+
+  String _tagFor(String id) {
+    switch (id) {
+      case 'data_science_ai': return 'AI & DATA';
+      case 'tech_developer': return 'TECH & DEV';
+      case 'finance_banking': return 'FINANCE';
+      case 'executive_leadership': return 'EXECUTIVE';
+      case 'modern_corporate': return 'CORPORATE';
+      case 'creative_design': return 'CREATIVE';
+      case 'marketing_growth': return 'GROWTH';
+      case 'healthcare_nursing': return 'HEALTHCARE';
+      case 'remote_distributed': return 'REMOTE';
+      case 'freelancer_consultant': return 'FREELANCE';
+      case 'entry_level_graduate': return 'GRADUATE';
+      case 'academic_research': return 'ACADEMIA';
+      case 'career_change': return 'PIVOT';
+      case 'sales_bizdev': return 'BIZDEV';
+      case 'customer_success': return 'SUPPORT';
+      default: return 'STANDARD';
+    }
+  }
+
+  bool _matchesCategory(String id, String category) {
+    if (category == 'All') return true;
+    switch (category) {
+      case 'Tech & AI':
+        return id == 'tech_developer' || id == 'data_science_ai';
+      case 'Corporate & Finance':
+        return id == 'standard_professional' ||
+            id == 'modern_corporate' ||
+            id == 'executive_leadership' ||
+            id == 'finance_banking';
+      case 'Creative & Growth':
+        return id == 'creative_design' || id == 'marketing_growth';
+      case 'Healthcare & Service':
+        return id == 'healthcare_nursing' || id == 'customer_success';
+      case 'Remote & Freelance':
+        return id == 'remote_distributed' || id == 'freelancer_consultant';
+      case 'Entry & Career Shift':
+        return id == 'entry_level_graduate' ||
+            id == 'career_change' ||
+            id == 'academic_research' ||
+            id == 'sales_bizdev';
+      default:
+        return true;
+    }
+  }
+
+  void _showPreview(BuildContext context, CoverLetterTemplate tpl, int index) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (previewCtx) {
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.85,
+          decoration: const BoxDecoration(
+            color: Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                  boxShadow: [
+                    BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 1)),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF024D87).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.description_outlined, color: Color(0xFF024D87), size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            tpl.title,
+                            style: GoogleFonts.manrope(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFF191C1D),
+                            ),
+                          ),
+                          Text(
+                            'Cover Letter Template Preview',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: const Color(0xFF6B7280),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded),
+                      onPressed: () => Navigator.pop(previewCtx),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Paper Preview
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.05),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Header section with styled border
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: Text(
+                            tpl.header.isNotEmpty ? tpl.header : '[Your Name]\n[Contact Information]\n\n[Hiring Team]\n[Company Name]',
+                            style: GoogleFonts.inter(
+                              fontSize: 11.5,
+                              color: const Color(0xFF334155),
+                              height: 1.45,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Body
+                        Text(
+                          tpl.body.isNotEmpty ? tpl.body : 'Dear Hiring Manager,\n\nI am writing to express my strong interest in joining your team...',
+                          style: GoogleFonts.inter(
+                            fontSize: 12.5,
+                            color: const Color(0xFF1E293B),
+                            height: 1.6,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Footer
+                        Container(
+                          padding: const EdgeInsets.only(top: 10),
+                          decoration: const BoxDecoration(
+                            border: Border(top: BorderSide(color: Color(0xFFF1F5F9), width: 1.5)),
+                          ),
+                          child: Text(
+                            tpl.footer.isNotEmpty ? tpl.footer : 'Sincerely,\n[Your Name]',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF334155),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              // Bottom Action
+              Container(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, -2)),
+                  ],
+                ),
+                child: SafeArea(
+                  top: false,
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF024D87),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        elevation: 0,
+                      ),
+                      onPressed: () {
+                        Navigator.pop(previewCtx);
+                        widget.onSelected(tpl.id, index);
+                      },
+                      icon: const Icon(Icons.check_rounded, size: 18),
+                      label: Text(
+                        'Apply This Template',
+                        style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     final current = context.watch<CoverLetterBloc>().state.model.templateIndex;
-    final templates = context.watch<CoverLetterBloc>().state.templates;
-    
-    if (templates.isEmpty) {
-      return const SizedBox(
-        height: 200,
-        child: Center(child: CircularProgressIndicator()),
-      );
+    final allTemplates = context.watch<CoverLetterBloc>().state.templates;
+
+    // Filter templates by selected category while preserving original index
+    final List<MapEntry<int, CoverLetterTemplate>> indexedTemplates = [];
+    for (int i = 0; i < allTemplates.length; i++) {
+      if (_matchesCategory(allTemplates[i].id, _selectedCategory)) {
+        indexedTemplates.add(MapEntry(i, allTemplates[i]));
+      }
     }
 
     return Column(
@@ -388,62 +675,169 @@ class _TemplateSheet extends StatelessWidget {
       children: [
         ClipRRect(
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          child: const CustomGradientHeader(
+          child: CustomGradientHeader(
             title: 'Choose Your Tone',
-            subtitle: 'Select a professional template for your Cover Letter',
-            badgeText: '8 Templates',
+            subtitle: 'Select from 16 industry-crafted Cover Letter templates',
+            badgeText: '${allTemplates.length} Templates',
             disableTopPadding: true,
             showBackButton: false,
           ),
         ),
-        const SizedBox(height: 12),
-        Flexible(
-          child: ListView.builder(
-            shrinkWrap: true,
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-            itemCount: templates.length,
-            itemBuilder: (_, i) {
-              final tpl = templates[i];
-              final isSelected = i == current;
-              return ListTile(
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
-                tileColor:
-                    isSelected ? const Color(0xFFE8F5EC) : Colors.transparent,
-                leading: CircleAvatar(
-                  backgroundColor: isSelected
-                      ? const Color(0xFF024D87)
-                      : const Color(0xFFF0F2F5),
-                  radius: 18,
-                  child: Text(
-                    '${i + 1}',
-                    style: GoogleFonts.manrope(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: isSelected
-                          ? Colors.white
-                          : const Color(0xFF6B7A6B),
+        // Horizontal Category Filter Bar
+        Container(
+          height: 42,
+          margin: const EdgeInsets.symmetric(vertical: 8),
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: _categories.length,
+            separatorBuilder: (_, _) => const SizedBox(width: 8),
+            itemBuilder: (context, idx) {
+              final cat = _categories[idx];
+              final isSel = cat == _selectedCategory;
+              return GestureDetector(
+                onTap: () => setState(() => _selectedCategory = cat),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: isSel ? const Color(0xFF024D87) : Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: isSel ? const Color(0xFF024D87) : const Color(0xFFE2E8F0),
+                    ),
+                    boxShadow: [
+                      if (isSel)
+                        BoxShadow(
+                          color: const Color(0xFF024D87).withValues(alpha: 0.2),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                    ],
+                  ),
+                  child: Center(
+                    child: Text(
+                      cat,
+                      style: GoogleFonts.inter(
+                        fontSize: 11.5,
+                        fontWeight: isSel ? FontWeight.w700 : FontWeight.w500,
+                        color: isSel ? Colors.white : const Color(0xFF475569),
+                      ),
                     ),
                   ),
                 ),
-                title: Text(
-                  tpl.title,
-                  style: GoogleFonts.inter(
-                    fontSize: 14,
-                    fontWeight:
-                        isSelected ? FontWeight.w700 : FontWeight.w500,
-                    color: const Color(0xFF191C1D),
-                  ),
-                ),
-                trailing: isSelected
-                    ? const Icon(Icons.check_circle_rounded,
-                        color: Color(0xFF024D87))
-                    : null,
-                onTap: () => onSelected(tpl.id, i),
               );
             },
           ),
         ),
+        if (allTemplates.isEmpty)
+          const SizedBox(
+            height: 200,
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else
+          Flexible(
+            child: ListView.builder(
+              shrinkWrap: true,
+              padding: const EdgeInsets.fromLTRB(16, 2, 16, 24),
+              itemCount: indexedTemplates.length,
+              itemBuilder: (_, listIndex) {
+                final originalIndex = indexedTemplates[listIndex].key;
+                final tpl = indexedTemplates[listIndex].value;
+                final isSelected = originalIndex == current;
+                final accent = _accentFor(tpl.id);
+                final tag = _tagFor(tpl.id);
+                final icon = _iconFor(tpl.id);
+
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  decoration: BoxDecoration(
+                    color: isSelected ? const Color(0xFFF0FDF4) : Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: isSelected ? const Color(0xFF024D87) : const Color(0xFFE2E8F0),
+                      width: isSelected ? 1.5 : 1,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.03),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                    leading: Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? const Color(0xFF024D87)
+                            : accent.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        icon,
+                        color: isSelected ? Colors.white : accent,
+                        size: 20,
+                      ),
+                    ),
+                    title: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            tpl.title,
+                            style: GoogleFonts.inter(
+                              fontSize: 13.5,
+                              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                              color: const Color(0xFF191C1D),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: accent.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            tag,
+                            style: GoogleFonts.inter(
+                              fontSize: 8.5,
+                              fontWeight: FontWeight.w800,
+                              color: accent,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    subtitle: Text(
+                      'Tailored industry vocabulary & structure',
+                      style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF64748B)),
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.remove_red_eye_outlined, size: 20),
+                          tooltip: 'Preview Template',
+                          color: const Color(0xFF024D87),
+                          onPressed: () => _showPreview(context, tpl, originalIndex),
+                        ),
+                        if (isSelected)
+                          const Icon(Icons.check_circle_rounded, color: Color(0xFF024D87), size: 22),
+                      ],
+                    ),
+                    onTap: () => widget.onSelected(tpl.id, originalIndex),
+                  ),
+                );
+              },
+            ),
+          ),
       ],
     );
   }

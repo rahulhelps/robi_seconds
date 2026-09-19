@@ -12,6 +12,7 @@ class StepSkills extends StatelessWidget {
     return BlocBuilder<CvBloc, CvState>(
       builder: (context, state) {
         final skillList = state.model.skills;
+
         return SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Center(
@@ -20,20 +21,30 @@ class StepSkills extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  CvStepHeader(
-                    title: 'Skills',
+                  const CvStepHeader(
+                    title: 'Key Skills',
                     subtitle:
-                        'Group your skills by category. Separate individual skills with commas.',
+                        'Group your core technical & interpersonal skills by category. Separate skills with commas.',
+                    icon: Icons.psychology_rounded,
                   ),
+                  if (skillList.isEmpty) ...[
+                    // If none added, auto-dispatch or show helper
+                    Builder(builder: (ctx) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        ctx.read<CvBloc>().add(const CvAddSkillCategory());
+                      });
+                      return const SizedBox.shrink();
+                    }),
+                  ],
                   ...List.generate(skillList.length, (i) {
                     return _SkillCard(index: i);
                   }),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
                   CvAddButton(
                     label: 'Add Skill Category',
                     onTap: () => context
                         .read<CvBloc>()
-                        .add(CvAddSkillCategory()),
+                        .add(const CvAddSkillCategory()),
                   ),
                   const SizedBox(height: 32),
                   CvNextButton(onNext: onNext),
@@ -56,17 +67,27 @@ class _SkillCard extends StatelessWidget {
     return BlocBuilder<CvBloc, CvState>(
       builder: (context, state) {
         final skill = state.model.skills[index];
+        final showErrors = state.showErrors;
+
         return CvEntryCard(
           index: index,
-          title: 'Skill Category #${index + 1}',
+          title: skill.category.isNotEmpty
+              ? skill.category
+              : 'Skill Category #${index + 1}',
+          icon: Icons.lightbulb_outline_rounded,
           onRemove: () =>
               context.read<CvBloc>().add(CvRemoveSkillCategory(index)),
           fields: [
             CvTextField(
-              label: 'Category',
-              hint: 'e.g. Programming Languages',
-              errorText: state.showErrors && skill.category.trim().isEmpty
-                  ? 'Required'
+              label: 'Category Name',
+              hint: 'e.g. Technical Skills, Leadership, Tools',
+              prefixIcon: Icons.folder_open_rounded,
+              isRequired: true,
+              controller: TextEditingController(text: skill.category)
+                ..selection =
+                    TextSelection.collapsed(offset: skill.category.length),
+              errorText: showErrors && skill.category.trim().isEmpty
+                  ? 'Category name is required'
                   : null,
               onChanged: (v) => context
                   .read<CvBloc>()
@@ -74,9 +95,14 @@ class _SkillCard extends StatelessWidget {
             ),
             CvTextField(
               label: 'Skills (comma-separated)',
-              hint: 'e.g. Dart, Flutter, Python',
-              errorText: state.showErrors && skill.skills.isEmpty
-                  ? 'At least one skill required'
+              hint: 'e.g. Flutter, Dart, REST API, Git, Docker',
+              prefixIcon: Icons.stars_rounded,
+              isRequired: true,
+              controller: TextEditingController(text: skill.skills.join(', '))
+                ..selection = TextSelection.collapsed(
+                    offset: skill.skills.join(', ').length),
+              errorText: showErrors && skill.skills.isEmpty
+                  ? 'At least one skill item is required'
                   : null,
               onChanged: (v) => context
                   .read<CvBloc>()
@@ -88,4 +114,3 @@ class _SkillCard extends StatelessWidget {
     );
   }
 }
-

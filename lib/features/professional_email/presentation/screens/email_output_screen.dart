@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -6,6 +5,7 @@ import 'package:open_file/open_file.dart';
 import '../../../../core/services/download_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/email_model.dart';
+import '../../../cv_builder/presentation/screens/pdf_preview_screen.dart';
 
 // ignore_for_file: avoid_print
 
@@ -50,6 +50,24 @@ class _EmailOutputScreenState extends State<EmailOutputScreen> {
       return widget.savedEmail!.subject;
     }
     return widget.model?.subject ?? 'Professional Email';
+  }
+
+  Future<void> _previewPdf() async {
+    try {
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PdfPreviewScreen.fromBytes(pdfBytes: widget.pdfBytes),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Cannot render PDF: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _download() async {
@@ -474,14 +492,13 @@ class _EmailOutputScreenState extends State<EmailOutputScreen> {
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () => Navigator.popUntil(
-                        context, ModalRoute.withName('/dashboard')),
-                    icon: const Icon(Icons.dashboard_outlined, size: 18),
-                    label: Text('Dashboard',
+                    onPressed: _previewPdf,
+                    icon: const Icon(Icons.visibility_outlined, size: 18),
+                    label: Text('Preview PDF',
                         style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF191C1D),
-                      side: const BorderSide(color: Color(0xFFD8DDD8)),
+                      foregroundColor: const Color(0xFF024D87),
+                      side: const BorderSide(color: Color(0xFF024D87)),
                       padding: const EdgeInsets.symmetric(vertical: 15),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12)),
@@ -501,7 +518,7 @@ class _EmailOutputScreenState extends State<EmailOutputScreen> {
                           )
                         : const Icon(Icons.picture_as_pdf_rounded, size: 18),
                     label: Text(
-                      _isDownloading ? 'Saving…' : 'Download',
+                      _isDownloading ? 'Saving…' : 'Download PDF',
                       style:
                           GoogleFonts.inter(fontWeight: FontWeight.bold),
                     ),

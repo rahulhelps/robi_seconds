@@ -66,7 +66,14 @@ class RecentActivityList extends StatelessWidget {
               ),
             ),
             TextButton(
-              onPressed: () {},
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Full activity history coming soon'),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              },
               style: TextButton.styleFrom(
                 padding: EdgeInsets.zero,
                 minimumSize: Size.zero,
