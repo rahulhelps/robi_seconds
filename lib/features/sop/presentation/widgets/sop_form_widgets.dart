@@ -119,7 +119,7 @@ class SopSectionHeader extends StatelessWidget {
                 color: AppColors.textPrimary,
               ),
         ),
-        if (badge != null) badge!,
+        ?badge,
       ],
     );
   }

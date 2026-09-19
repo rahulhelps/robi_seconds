@@ -7,7 +7,7 @@ import '../storage/token_manager.dart';
 import '../storage/user_storage.dart';
 
 /// Base URL for all API calls — single source of truth in [ApiConstants].
-const _baseUrl = ApiConstants.baseUrl;
+  String get _baseUrl => ApiConstants.baseUrl;
 
 /// AuthService handles all authentication-related HTTP calls using the `http`
 /// package. It also manages automatic token refresh on 401 responses.
@@ -24,10 +24,6 @@ class AuthService {
   static Future<Map<String, dynamic>> loginWithPhone(String phoneNumber) async {
     final uri = Uri.parse('$_baseUrl/auth/phone-auth');
 
-    // ── Debug: log request ──────────────────────────────────────────────────
-    print('[AuthService] POST $uri');
-    print('[AuthService] Body: ${jsonEncode({'phoneNumber': phoneNumber})}');
-
     final response = await http
         .post(
           uri,
@@ -36,13 +32,7 @@ class AuthService {
         )
         .timeout(const Duration(seconds: 15));
 
-    // ── Debug: log raw response ─────────────────────────────────────────────
-    print('[AuthService] Status: ${response.statusCode}');
-    print('[AuthService] Body: ${response.body}');
-
-    // _parseResponse returns the full root JSON map
     final rootJson = _parseResponse(response);
-    print('[AuthService] Parsed root JSON: $rootJson');
 
     // The server wraps payload inside a 'data' key:
     // { "success": true, "data": { "accessToken": ..., "refreshToken": ..., "user": ... } }
@@ -53,7 +43,6 @@ class AuthService {
     }
 
     final payload = rootJson['data'] as Map<String, dynamic>?;
-    print('[AuthService] Payload (data): $payload');
 
     if (payload == null) {
       throw 'Invalid server response: "data" key is missing.';
@@ -63,23 +52,19 @@ class AuthService {
     final accessToken = payload['accessToken'] as String?;
     final refreshToken = payload['refreshToken'] as String?;
 
-    print('[AuthService] Token after login: $accessToken');
-    print('[AuthService] refreshToken: $refreshToken');
-
     if (accessToken == null || refreshToken == null) {
       throw 'Invalid server response: tokens missing inside "data".';
     }
 
     await TokenManager.saveTokens(
-      accessToken: accessToken,
-      refreshToken: refreshToken,
+      accessToken,
+      refreshToken,
     );
 
     // Persist user object (also inside 'data')
     final user = payload['user'] as Map<String, dynamic>?;
     if (user != null) {
       await UserStorage.saveUser(user);
-      print('[AuthService] User saved: $user');
     }
 
     return payload;
@@ -120,11 +105,9 @@ class AuthService {
 
         if (newToken != null && newToken.isNotEmpty) {
           await TokenManager.saveAccessToken(newToken);
-          // Persist the rotated refresh token so the next refresh uses it.
           if (newRefreshToken != null && newRefreshToken.isNotEmpty) {
             await TokenManager.saveRefreshToken(newRefreshToken);
           }
-          print('[AuthService] Silent refresh succeeded.');
           return true;
         }
       }
@@ -132,14 +115,12 @@ class AuthService {
       // 401/403 means the refresh token itself is invalid/expired/revoked —
       // the session is genuinely over, so clear it.
       if (response.statusCode == 401 || response.statusCode == 403) {
-        print('[AuthService] Refresh rejected (${response.statusCode}). Logging out.');
         await logout();
       }
       // Any other status (5xx, unexpected body) is treated as transient: keep
       // the session so the user can retry rather than being kicked out.
       return false;
     } catch (e) {
-      print('[AuthService] Refresh failed transiently: $e');
       return false;
     }
   }
@@ -150,6 +131,7 @@ class AuthService {
   static Future<void> _ensureFreshTokenOrThrow() async {
     final refreshed = await refreshToken();
     if (refreshed) return;
+
     final stillHasSession =
         (await TokenManager.getRefreshToken())?.isNotEmpty ?? false;
     if (stillHasSession) {
@@ -199,6 +181,20 @@ class AuthService {
     return result;
   }
 
+  /// Makes an authenticated PATCH request to [path] with [body].
+  /// Automatically retries once after refreshing the token on a 401.
+  static Future<Map<String, dynamic>> authenticatedPatch(
+    String path,
+    Map<String, dynamic> body,
+  ) async {
+    final result = await _doPatch(path, body);
+    if (result['__status'] == 401) {
+      await _ensureFreshTokenOrThrow();
+      return _doPatch(path, body);
+    }
+    return result;
+  }
+
   /// Makes an authenticated DELETE request to [path].
   /// Automatically retries once after refreshing the token on a 401.
   static Future<Map<String, dynamic>> authenticatedDelete(String path) async {
@@ -208,6 +204,18 @@ class AuthService {
       return _doDelete(path);
     }
     return result;
+  }
+
+  static Future<Map<String, dynamic>> changePassword({
+    required String currentPassword,
+    required String password,
+    required String passwordConfirmation,
+  }) async {
+    return authenticatedPost('/profile/password', {
+      'current_password': currentPassword,
+      'password': password,
+      'password_confirmation': passwordConfirmation,
+    });
   }
 
   /// Makes an authenticated GET request to [path] and returns the raw response.
@@ -251,7 +259,6 @@ class AuthService {
 
   static Future<Map<String, dynamic>> _doGet(String path) async {
     final token = await TokenManager.getAccessToken();
-    print('[AuthService] GET token: $token');
     final uri = Uri.parse('$_baseUrl$path');
     final response = await http.get(
       uri,
@@ -270,12 +277,7 @@ class AuthService {
     Map<String, dynamic> body,
   ) async {
     final token = await TokenManager.getAccessToken();
-    print('[AuthService] POST token: $token');
     final uri = Uri.parse('$_baseUrl$path');
-
-    // ── Debug: log outgoing request body ─────────────────────────────────────
-    print('[AuthService] POST $uri');
-    print('[AuthService] REQUEST BODY:\n${jsonEncode(body)}');
 
     final response = await http
         .post(
@@ -288,10 +290,6 @@ class AuthService {
         )
         .timeout(const Duration(seconds: 15));
 
-    // ── Debug: log raw response ───────────────────────────────────────────────
-    print('[AuthService] RESPONSE STATUS: ${response.statusCode}');
-    print('[AuthService] RESPONSE BODY:\n${response.body}');
-
     if (response.statusCode == 401) return {'__status': 401};
     return _parseResponse(response);
   }
@@ -301,11 +299,7 @@ class AuthService {
     Map<String, dynamic> body,
   ) async {
     final token = await TokenManager.getAccessToken();
-    print('[AuthService] PUT token: $token');
     final uri = Uri.parse('$_baseUrl$path');
-
-    print('[AuthService] PUT $uri');
-    print('[AuthService] REQUEST BODY:\n${jsonEncode(body)}');
 
     final response = await http
         .put(
@@ -318,8 +312,26 @@ class AuthService {
         )
         .timeout(const Duration(seconds: 15));
 
-    print('[AuthService] RESPONSE STATUS: ${response.statusCode}');
-    print('[AuthService] RESPONSE BODY:\n${response.body}');
+    if (response.statusCode == 401) return {'__status': 401};
+    return _parseResponse(response);
+  }
+
+  static Future<Map<String, dynamic>> _doPatch(
+    String path,
+    Map<String, dynamic> body,
+  ) async {
+    final token = await TokenManager.getAccessToken();
+    final uri = Uri.parse('$_baseUrl$path');
+
+    final request = http.Request('PATCH', uri)
+      ..headers.addAll({
+        'Content-Type': 'application/json',
+        if (token != null) 'Authorization': 'Bearer $token',
+      })
+      ..body = jsonEncode(body);
+
+    final streamedResponse = await request.send().timeout(const Duration(seconds: 15));
+    final response = await http.Response.fromStream(streamedResponse);
 
     if (response.statusCode == 401) return {'__status': 401};
     return _parseResponse(response);
@@ -327,10 +339,7 @@ class AuthService {
 
   static Future<Map<String, dynamic>> _doDelete(String path) async {
     final token = await TokenManager.getAccessToken();
-    print('[AuthService] DELETE token: $token');
     final uri = Uri.parse('$_baseUrl$path');
-
-    print('[AuthService] DELETE $uri');
 
     final response = await http.delete(
       uri,
@@ -338,10 +347,7 @@ class AuthService {
         'Content-Type': 'application/json',
         if (token != null) 'Authorization': 'Bearer $token',
       },
-    ).timeout(const Duration(seconds: 15));
-
-    print('[AuthService] RESPONSE STATUS: ${response.statusCode}');
-    print('[AuthService] RESPONSE BODY:\n${response.body}');
+    )        .timeout(const Duration(seconds: 15));
 
     if (response.statusCode == 401) return {'__status': 401};
     return _parseResponse(response);
@@ -370,13 +376,8 @@ class AuthService {
       ),
     );
 
-    print('[AuthService] POST Multipart $uri');
-
     final streamedResponse = await request.send().timeout(const Duration(seconds: 30));
     final response = await http.Response.fromStream(streamedResponse);
-
-    print('[AuthService] RESPONSE STATUS: ${response.statusCode}');
-    print('[AuthService] RESPONSE BODY:\n${response.body}');
 
     if (response.statusCode == 401) {
       await _ensureFreshTokenOrThrow();

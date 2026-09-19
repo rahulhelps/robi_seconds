@@ -2,6 +2,8 @@ part of 'template_gallery_bloc.dart';
 
 abstract class TemplateGalleryEvent {}
 
+class LoadTemplates extends TemplateGalleryEvent {}
+
 class TemplateFilterChanged extends TemplateGalleryEvent {
   final String filter;
   TemplateFilterChanged(this.filter);
@@ -10,7 +12,7 @@ class TemplateFilterChanged extends TemplateGalleryEvent {
 class SelectTemplate extends TemplateGalleryEvent {
   final String title;
   final bool isPremium;
-  final int templateId; // 1-based index (1–5)
+  final String templateId;
   SelectTemplate({required this.title, required this.isPremium, required this.templateId});
 }
 

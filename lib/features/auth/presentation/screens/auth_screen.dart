@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../bloc/auth_bloc.dart';
 import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';
@@ -11,67 +12,63 @@ import '../widgets/auth_footer.dart';
 import '../../../../core/network/bloc/connectivity_bloc.dart';
 import '../../../../core/network/bloc/connectivity_state.dart';
 import '../../../../core/widgets/no_internet_screen.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class AuthScreen extends StatelessWidget {
   const AuthScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider<AuthBloc>.value(
-      value: context.read<AuthBloc>(),
-      child: BlocListener<AuthBloc, AuthState>(
-        listener: (context, state) {
-          if (state is AuthOtpSent) {
-            // BDApps OTP was sent – navigate to verification screen with args.
-            Navigator.pushNamed(
-              context,
-              '/verification',
-              arguments: {
-                'referenceNo': state.referenceNo,
-                'phone': state.phone,
-              },
-            );
-          } else if (state is AuthAuthenticated) {
-            final user = state.user;
-            final phone = (user?['phoneNumber'] ?? user?['phone'] ?? '').toString();
-            if (phone.startsWith('018') || phone.startsWith('016')) {
-              // Robi/Airtel authenticated via old flow – go to dashboard.
-              Navigator.pushNamed(context, '/dashboard');
-            } else {
-              Navigator.pushNamed(context, '/email_registration');
-            }
-          } else if (state is AuthEmailRequired) {
+    return BlocListener<AuthBloc, AuthState>(
+      listener: (context, state) {
+        if (state is AuthOtpSent) {
+          Navigator.pushNamed(
+            context,
+            '/verification',
+            arguments: {
+              'referenceNo': state.referenceNo,
+              'phone': state.phone,
+            },
+          );
+        } else if (state is AuthAuthenticated) {
+          final user = state.user;
+          final phone = (user?['phoneNumber'] ?? user?['phone'] ?? '').toString();
+          if (phone.startsWith('018') || phone.startsWith('016')) {
+            Navigator.pushNamed(context, '/dashboard');
+          } else {
             Navigator.pushNamed(context, '/email_registration');
-          } else if (state is AuthError) {
-             ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.message)));
           }
-        },
-        child: BlocBuilder<ConnectivityBloc, ConnectivityState>(
-          builder: (context, connectivityState) {
-            final isOffline = connectivityState is ConnectivityOffline;
+        } else if (state is AuthEmailRequired) {
+          Navigator.pushNamed(context, '/email_registration');
+        } else if (state is AuthError) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(state.message)),
+          );
+        }
+      },
+      child: BlocBuilder<ConnectivityBloc, ConnectivityState>(
+        builder: (context, connectivityState) {
+          final isOffline = connectivityState is ConnectivityOffline;
 
-            if (isOffline) {
-              print("Auth Screen Network: Offline");
-              return NoInternetScreen(
-                onRetry: () => context.read<AuthBloc>().add(const CheckAuthStatus()),
-              );
-            }
+          if (isOffline) {
+            debugPrint("Auth Screen Network: Offline");
+            return NoInternetScreen(
+              onRetry: () => context.read<AuthBloc>().add(const CheckAuthStatus()),
+            );
+          }
 
-            print("Auth Screen Network: Online");
+          debugPrint("Auth Screen Network: Online");
 
-            return AnnotatedRegion<SystemUiOverlayStyle>(
-              value: const SystemUiOverlayStyle(
-                statusBarColor: Colors.transparent,
-                statusBarIconBrightness: Brightness.dark,
-                statusBarBrightness: Brightness.light,
-              ),
-              child: Scaffold(
-                backgroundColor: const Color(0xFFF8F9FA),
-                extendBodyBehindAppBar: true,
-                body: Stack(
-                  children: [
-                  // Background decorations
+          return AnnotatedRegion<SystemUiOverlayStyle>(
+            value: const SystemUiOverlayStyle(
+              statusBarColor: Colors.transparent,
+              statusBarIconBrightness: Brightness.dark,
+              statusBarBrightness: Brightness.light,
+            ),
+            child: Scaffold(
+              backgroundColor: const Color(0xFFF8F9FA),
+              extendBodyBehindAppBar: true,
+              body: Stack(
+                children: [
                   Positioned(
                     bottom: -96,
                     right: -96,
@@ -102,17 +99,15 @@ class AuthScreen extends StatelessWidget {
                       ),
                     ),
                   ),
-                  
-                  // Main content
                   SafeArea(
                     child: Column(
                       children: [
-                        // Language Toggle
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.end,
                             children: [
+
                               BlocBuilder<LanguageBloc, LanguageState>(
                                 builder: (context, state) {
                                   return Container(
@@ -174,9 +169,8 @@ class AuthScreen extends StatelessWidget {
                 ],
               ),
             ),
-            );
-          },
-        ),
+          );
+        },
       ),
     );
   }
@@ -220,3 +214,4 @@ class _LanguageOption extends StatelessWidget {
     );
   }
 }
+

@@ -2,17 +2,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'dart:convert';
 import 'package:open_file/open_file.dart';
 import '../../../../core/services/download_service.dart';
 import '../../domain/cover_letter_model.dart';
+import '../../data/cover_letter_pdf_generator.dart';
+import '../../../cv_builder/presentation/screens/pdf_preview_screen.dart';
 
 /// Displays the saved cover letter and allows the user to download it as a
-/// plain-text (.txt) file.
+/// professional PDF file.
 class CoverLetterOutputScreen extends StatefulWidget {
   final SavedCoverLetter saved;
+  final int templateIndex;
 
-  const CoverLetterOutputScreen({super.key, required this.saved});
+  const CoverLetterOutputScreen({
+    super.key,
+    required this.saved,
+    this.templateIndex = 0,
+  });
 
   @override
   State<CoverLetterOutputScreen> createState() =>
@@ -21,25 +27,33 @@ class CoverLetterOutputScreen extends StatefulWidget {
 
 class _CoverLetterOutputScreenState extends State<CoverLetterOutputScreen> {
   bool _isDownloading = false;
+  Uint8List? _cachedPdfBytes;
 
-  // ── Build full letter text ─────────────────────────────────────────────────
+  Future<Uint8List> _getPdfBytes() async {
+    if (_cachedPdfBytes != null && _cachedPdfBytes!.isNotEmpty) {
+      return _cachedPdfBytes!;
+    }
+    final bytes = await CoverLetterPdfGenerator().generatePdf(
+      header: widget.saved.header,
+      body: widget.saved.body,
+      footer: widget.saved.footer,
+      templateIndex: widget.templateIndex,
+    );
+    _cachedPdfBytes = bytes;
+    return bytes;
+  }
 
-  String get _fullText =>
-      '${widget.saved.header}\n\n${widget.saved.body}\n\n${widget.saved.footer}';
-
-  // ── Download ───────────────────────────────────────────────────────────────
+  // ── Download PDF ──────────────────────────────────────────────────────────
 
   Future<void> _download() async {
     setState(() => _isDownloading = true);
     try {
-      final bytes = Uint8List.fromList(utf8.encode(_fullText));
+      final bytes = await _getPdfBytes();
       final savedPath = await DownloadService.downloadAndSaveFile(
         existingBytes: bytes,
         baseFileName: 'CoverLetter',
-        fileExtension: 'txt',
+        fileExtension: 'pdf',
       );
-
-      print('[CoverLetterOutputScreen] Saved: $savedPath');
 
       if (mounted) {
         HapticFeedback.mediumImpact();
@@ -47,7 +61,17 @@ class _CoverLetterOutputScreenState extends State<CoverLetterOutputScreen> {
           ..hideCurrentSnackBar()
           ..showSnackBar(
             SnackBar(
-              content: Text('Saved to: $savedPath', style: GoogleFonts.inter(color: Colors.white, fontSize: 13)),
+              content: Row(
+                children: [
+                  const Icon(Icons.picture_as_pdf_rounded, color: Colors.white, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text('PDF saved: $savedPath',
+                        style: GoogleFonts.inter(color: Colors.white, fontSize: 13),
+                        overflow: TextOverflow.ellipsis),
+                  ),
+                ],
+              ),
               action: SnackBarAction(
                 label: 'OPEN',
                 textColor: Colors.white,
@@ -95,6 +119,25 @@ class _CoverLetterOutputScreenState extends State<CoverLetterOutputScreen> {
       }
     } finally {
       if (mounted) setState(() => _isDownloading = false);
+    }
+  }
+
+  Future<void> _previewPdf() async {
+    try {
+      final bytes = await _getPdfBytes();
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PdfPreviewScreen.fromBytes(pdfBytes: bytes),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Cannot render PDF: $e')),
+        );
+      }
     }
   }
 
@@ -229,14 +272,13 @@ class _CoverLetterOutputScreenState extends State<CoverLetterOutputScreen> {
             children: [
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () => Navigator.popUntil(
-                      context, ModalRoute.withName('/dashboard')),
-                  icon: const Icon(Icons.dashboard_outlined, size: 18),
-                  label: Text('Dashboard',
+                  onPressed: _previewPdf,
+                  icon: const Icon(Icons.visibility_outlined, size: 18),
+                  label: Text('Preview PDF',
                       style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF191C1D),
-                    side: const BorderSide(color: Color(0xFFD8DDD8)),
+                    foregroundColor: const Color(0xFF024D87),
+                    side: const BorderSide(color: Color(0xFF024D87)),
                     padding: const EdgeInsets.symmetric(vertical: 15),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12)),
@@ -254,9 +296,9 @@ class _CoverLetterOutputScreenState extends State<CoverLetterOutputScreen> {
                           child: CircularProgressIndicator(
                               strokeWidth: 2, color: Colors.white),
                         )
-                      : const Icon(Icons.download_rounded, size: 18),
+                      : const Icon(Icons.picture_as_pdf_rounded, size: 18),
                   label: Text(
-                    _isDownloading ? 'Saving…' : 'Download',
+                    _isDownloading ? 'Saving…' : 'Download PDF',
                     style: GoogleFonts.inter(fontWeight: FontWeight.bold),
                   ),
                   style: ElevatedButton.styleFrom(

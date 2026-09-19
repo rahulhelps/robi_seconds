@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 /// Immutable data model for the full CV generation payload.
 /// Each field maps directly to the POST /api/v1/cvs/generate body.
 class CvModel {
@@ -24,6 +25,97 @@ class CvModel {
     this.languages = const [],
   });
 
+  /// Realistic sample CV data for live template previews.
+  static CvModel sample({String templateId = '', String? jobTitle}) {
+    return CvModel(
+      templateId: templateId,
+      careerObjective:
+          'Dedicated and results-oriented professional with a strong track record of success. Seeking to leverage proven technical and analytical skills to contribute to organizational growth and excellence.',
+      personalInfo: const PersonalInfo(
+        name: 'Mohammad Tanvir Ahmed',
+        email: 'tanvir.ahmed@example.com',
+        phone: '+880 1712-345678',
+        address: 'House #12, Road #5, Dhanmondi, Dhaka-1209',
+      ),
+      personalProfile: const PersonalProfile(
+        fatherName: 'Late Rafiqul Islam',
+        dateOfBirth: '15 Jan 1996',
+        nationality: 'Bangladeshi',
+        maritalStatus: 'Single',
+        gender: 'Male',
+        strength: 'Quick learner, leadership, analytical problem solver',
+        hobbies: 'Reading tech blogs, traveling, open source projects',
+      ),
+      education: const [
+        Education(
+          degree: 'B.Sc in Computer Science & Engineering',
+          institution: 'University of Dhaka',
+          board: 'Dhaka',
+          fieldOfStudy: 'Computer Science',
+          passingYear: '2019',
+          result: 'CGPA 3.82',
+        ),
+        Education(
+          degree: 'Higher Secondary Certificate (HSC)',
+          institution: 'Dhaka College',
+          board: 'Dhaka',
+          fieldOfStudy: 'Science',
+          passingYear: '2014',
+          result: 'GPA 5.00',
+        ),
+      ],
+      skills: const [
+        SkillCategory(
+          category: 'Core Competencies',
+          skills: [
+            'Flutter & Dart',
+            'REST APIs',
+            'State Management (BLoC)',
+            'Git & GitHub',
+            'Clean Architecture'
+          ],
+        ),
+        SkillCategory(
+          category: 'Tools & Technologies',
+          skills: ['Figma', 'Postman', 'Firebase', 'Docker', 'Agile/Scrum'],
+        ),
+      ],
+      workExperience: const [
+        WorkExperience(
+          company: 'TechNova Solutions Ltd.',
+          position: 'Senior Software Engineer',
+          startDate: '2021',
+          endDate: 'Present',
+          description:
+              'Leading mobile application architecture and delivering high-performance cross-platform solutions.',
+          bullets: [
+            'Architected and published 3 production apps with over 100k downloads',
+            'Reduced app crash rate to less than 0.1% by implementing robust state handling',
+            'Mentored junior engineers and led bi-weekly code reviews',
+          ],
+        ),
+        WorkExperience(
+          company: 'InnoApp Labs',
+          position: 'Software Developer',
+          startDate: '2019',
+          endDate: '2021',
+          description:
+              'Developed responsive UI screens and integrated REST APIs.',
+          bullets: [
+            'Implemented state management and local offline caching',
+            'Collaborated closely with UX designers to ensure pixel-perfect screens',
+          ],
+        ),
+      ],
+      languages: const [
+        Language(
+            language: 'English',
+            proficiency: 'Professional Working Proficiency'),
+        Language(language: 'Bengali', proficiency: 'Native / Bilingual'),
+      ],
+    );
+  }
+
   CvModel copyWith({
     String? templateId,
     String? careerObjective,
@@ -49,7 +141,7 @@ class CvModel {
   /// Builds the exact JSON body expected by POST /api/v1/cvs/generate.
   Map<String, dynamic> toJson() {
     final body = {
-      'templateId': templateId,
+      'template_id': templateId,
       // personalInfo is Required by the API
       'personalInfo': {
         ...personalInfo.toJson(),
@@ -61,8 +153,37 @@ class CvModel {
       'workExperience': workExperience.map((w) => w.toJson()).toList(),
       'languages': languages.map((l) => l.toJson()).toList(),
     };
-    print('[CvModel] toJson() body: $body');
+    debugPrint('[CvModel] toJson() body: $body');
     return body;
+  }
+
+  factory CvModel.fromJson(Map<String, dynamic> json) {
+    return CvModel(
+      templateId: json['templateId'] as String? ?? '',
+      careerObjective: json['personalInfo']?['summary'] as String? ?? '',
+      personalInfo: json['personalInfo'] != null 
+          ? PersonalInfo.fromJson(json['personalInfo'] as Map<String, dynamic>)
+          : const PersonalInfo(),
+      personalProfile: json['personalProfile'] != null
+          ? PersonalProfile.fromJson(json['personalProfile'] as Map<String, dynamic>)
+          : const PersonalProfile(maritalStatus: 'Single', gender: 'Male'),
+      education: (json['education'] as List<dynamic>?)
+              ?.map((e) => Education.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          const [],
+      skills: (json['skills'] as List<dynamic>?)
+              ?.map((e) => SkillCategory.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          const [],
+      workExperience: (json['workExperience'] as List<dynamic>?)
+              ?.map((e) => WorkExperience.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          const [],
+      languages: (json['languages'] as List<dynamic>?)
+              ?.map((e) => Language.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          const [],
+    );
   }
 }
 
@@ -101,6 +222,15 @@ class PersonalInfo {
         'phone': phone,
         'address': address,
       };
+
+  factory PersonalInfo.fromJson(Map<String, dynamic> json) {
+    return PersonalInfo(
+      name: json['name'] as String? ?? '',
+      email: json['email'] as String? ?? '',
+      phone: json['phone'] as String? ?? '',
+      address: json['address'] as String? ?? '',
+    );
+  }
 }
 
 // ── Personal Profile ────────────────────────────────────────────────────────
@@ -153,6 +283,18 @@ class PersonalProfile {
         'strength': strength,
         'hobbies': hobbies,
       };
+
+  factory PersonalProfile.fromJson(Map<String, dynamic> json) {
+    return PersonalProfile(
+      fatherName: json['fatherName'] as String? ?? '',
+      dateOfBirth: json['dateOfBirth'] as String? ?? '',
+      nationality: json['nationality'] as String? ?? '',
+      maritalStatus: json['maritalStatus'] as String? ?? '',
+      gender: json['gender'] as String? ?? '',
+      strength: json['strength'] as String? ?? '',
+      hobbies: json['hobbies'] as String? ?? '',
+    );
+  }
 }
 
 // ── Education ───────────────────────────────────────────────────────────────
@@ -163,6 +305,9 @@ class Education {
   final String fieldOfStudy;
   final String startDate;
   final String endDate;
+  final String board;
+  final String passingYear;
+  final String result;
 
   const Education({
     this.institution = '',
@@ -170,6 +315,9 @@ class Education {
     this.fieldOfStudy = '',
     this.startDate = '',
     this.endDate = '',
+    this.board = '',
+    this.passingYear = '',
+    this.result = '',
   });
 
   Education copyWith({
@@ -178,6 +326,9 @@ class Education {
     String? fieldOfStudy,
     String? startDate,
     String? endDate,
+    String? board,
+    String? passingYear,
+    String? result,
   }) {
     return Education(
       institution: institution ?? this.institution,
@@ -185,6 +336,9 @@ class Education {
       fieldOfStudy: fieldOfStudy ?? this.fieldOfStudy,
       startDate: startDate ?? this.startDate,
       endDate: endDate ?? this.endDate,
+      board: board ?? this.board,
+      passingYear: passingYear ?? this.passingYear,
+      result: result ?? this.result,
     );
   }
 
@@ -193,8 +347,25 @@ class Education {
         'degree': degree,
         'fieldOfStudy': fieldOfStudy,
         'startDate': startDate,
-        'endDate': endDate,
+        'endDate': endDate.isNotEmpty ? endDate : passingYear,
+        'board': board,
+        'passingYear': passingYear.isNotEmpty ? passingYear : endDate,
+        'result': result,
       };
+
+  factory Education.fromJson(Map<String, dynamic> json) {
+    final end = json['endDate'] as String? ?? json['passingYear'] as String? ?? '';
+    return Education(
+      institution: json['institution'] as String? ?? '',
+      degree: json['degree'] as String? ?? '',
+      fieldOfStudy: json['fieldOfStudy'] as String? ?? '',
+      startDate: json['startDate'] as String? ?? '',
+      endDate: end,
+      board: json['board'] as String? ?? '',
+      passingYear: json['passingYear'] as String? ?? end,
+      result: json['result'] as String? ?? json['grade'] as String? ?? '',
+    );
+  }
 }
 
 // ── Skills ──────────────────────────────────────────────────────────────────
@@ -216,6 +387,13 @@ class SkillCategory {
         'category': category,
         'skills': skills,
       };
+
+  factory SkillCategory.fromJson(Map<String, dynamic> json) {
+    return SkillCategory(
+      category: json['category'] as String? ?? '',
+      skills: (json['skills'] as List<dynamic>?)?.map((e) => e as String).toList() ?? const [],
+    );
+  }
 }
 
 // ── Work Experience ─────────────────────────────────────────────────────────
@@ -263,6 +441,17 @@ class WorkExperience {
         'description': description,
         'bullets': bullets,
       };
+
+  factory WorkExperience.fromJson(Map<String, dynamic> json) {
+    return WorkExperience(
+      company: json['company'] as String? ?? '',
+      position: json['position'] as String? ?? '',
+      startDate: json['startDate'] as String? ?? '',
+      endDate: json['endDate'] as String? ?? '',
+      description: json['description'] as String? ?? '',
+      bullets: (json['bullets'] as List<dynamic>?)?.map((e) => e as String).toList() ?? const [],
+    );
+  }
 }
 
 // ── Language ────────────────────────────────────────────────────────────────
@@ -284,4 +473,11 @@ class Language {
         'language': language,
         'proficiency': proficiency,
       };
+
+  factory Language.fromJson(Map<String, dynamic> json) {
+    return Language(
+      language: json['language'] as String? ?? '',
+      proficiency: json['proficiency'] as String? ?? '',
+    );
+  }
 }

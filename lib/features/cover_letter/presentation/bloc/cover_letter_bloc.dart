@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../domain/cover_letter_model.dart';
 import '../../domain/cover_letter_repository.dart';
@@ -101,7 +102,9 @@ class CoverLetterBloc extends Bloc<CoverLetterEvent, CoverLetterState> {
         add(SelectTemplate(templates.first.id, 0));
       }
     } catch (e) {
-      print('[CoverLetterBloc] Fetch templates error: $e');
+      if (kDebugMode) {
+        print('[CoverLetterBloc] Fetch templates error: $e');
+      }
       emit(CoverLetterError(state.model, 'Failed to load templates: $e', templates: state.templates));
     }
   }
@@ -121,7 +124,9 @@ class CoverLetterBloc extends Bloc<CoverLetterEvent, CoverLetterState> {
 
       emit(CoverLetterInitial(updatedModel, templates: state.templates));
     } catch (e) {
-      print('[CoverLetterBloc] Select template error: $e');
+      if (kDebugMode) {
+        print('[CoverLetterBloc] Select template error: $e');
+      }
       emit(CoverLetterError(state.model, 'Failed to load template details.', templates: state.templates));
     }
   }
@@ -147,7 +152,9 @@ class CoverLetterBloc extends Bloc<CoverLetterEvent, CoverLetterState> {
       final saved = await _repository.postCoverLetter(state.model);
       emit(CoverLetterSuccess(state.model, saved, templates: state.templates));
     } catch (e) {
-      print('[CoverLetterBloc] Create error: $e');
+      if (kDebugMode) {
+        print('[CoverLetterBloc] Create error: $e');
+      }
       emit(CoverLetterError(state.model, 'Failed to create cover letter.', templates: state.templates));
     }
   }
@@ -158,7 +165,9 @@ class CoverLetterBloc extends Bloc<CoverLetterEvent, CoverLetterState> {
       final items = await _repository.fetchCoverLetters();
       emit(CoverLetterLoaded(state.model, items, templates: state.templates));
     } catch (e) {
-      print('[CoverLetterBloc] Fetch error: $e');
+      if (kDebugMode) {
+        print('[CoverLetterBloc] Fetch error: $e');
+      }
       emit(CoverLetterError(state.model, 'Failed to fetch cover letters.', templates: state.templates));
     }
   }

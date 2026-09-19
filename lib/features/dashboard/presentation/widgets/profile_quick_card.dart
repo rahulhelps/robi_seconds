@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:quickcvpro/features/profile/presentation/bloc/profile_bloc.dart';
-import 'package:quickcvpro/features/dashboard/presentation/bloc/dashboard_bloc.dart';
+import '../../../profile/presentation/bloc/profile_bloc.dart';
+import '../../../profile/presentation/screens/profile_settings_screen.dart';
 
 class ProfileQuickCard extends StatelessWidget {
   const ProfileQuickCard({super.key});
@@ -11,103 +11,170 @@ class ProfileQuickCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<ProfileBloc, ProfileState>(
       builder: (context, state) {
-        String phoneDisplay = '...';
+        int completion = 92;
+        String tier = 'Strong';
+        String advice = 'Ready for Top Multinational & Remote Jobs';
+
         if (state is ProfileLoaded) {
-          final p = state.phoneNumber;
-          if (p.length >= 7) {
-            phoneDisplay = '${p.substring(0, 4)}****${p.substring(p.length - 3)}';
+          completion = state.completionPercentage;
+          if (completion >= 80) {
+            tier = 'Strong';
+            advice = 'Ready for Top Multinational & Remote Jobs';
+          } else if (completion >= 50) {
+            tier = 'Good';
+            advice = 'Add skills & social links to reach 90%+';
           } else {
-            phoneDisplay = p;
+            tier = 'Getting Started';
+            advice = 'Complete basic info & education to stand out';
           }
         }
 
-        return Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF3F4F5),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Column(
-            children: [
-              // Avatar + info row
-              Row(
-                children: [
-                  // Avatar
-                  Container(
-                    width: 56,
-                    height: 56,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      color: const Color(0xFF024D87),
-                    ),
-                    child: const ClipRRect(
-                      borderRadius: BorderRadius.all(Radius.circular(12)),
-                      child: Icon(Icons.person, color: Colors.white, size: 32),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        phoneDisplay,
-                        style: GoogleFonts.manrope(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w700,
-                          color: const Color(0xFF191C1D),
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Verified Profile',
-                        style: GoogleFonts.inter(
-                          fontSize: 13,
-                          color: const Color(0xFF3E4A3C),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
+        final factor = (completion / 100.0).clamp(0.05, 1.0);
 
-              // Edit Profile button
-              Material(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(12),
-                  onTap: () {
-                    context.read<DashboardBloc>().add(
-                          const DashboardNavTabChanged(DashboardNavIndex.profile),
-                        );
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+        return GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const ProfileSettingsScreen(),
+              ),
+            );
+          },
+          child: Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF4F46E5), Color(0xFF6366F1), Color(0xFF7C3AED)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(22),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF4F46E5).withValues(alpha: 0.35),
+                  blurRadius: 18,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Top Row: Title + Percentage Tag
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.insights_rounded,
+                          color: Colors.white,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Profile Strength',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        '$completion% ($tier)',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFFFDE047),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                // Rounded Progress Track & Bar
+                Container(
+                  height: 8,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: FractionallySizedBox(
+                      widthFactor: factor,
+                      child: Container(
+                        height: 8,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFFBBF24), Color(0xFFFDE047)],
+                          ),
+                          borderRadius: BorderRadius.circular(4),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFFBBF24).withValues(alpha: 0.5),
+                              blurRadius: 6,
+                              offset: const Offset(0, 1),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+
+                // Subtitle Advice & Edit Link
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        advice,
+                        style: GoogleFonts.inter(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white.withValues(alpha: 0.9),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Row(
                       children: [
                         Text(
                           'Edit Profile',
                           style: GoogleFonts.inter(
-                            fontSize: 14,
+                            fontSize: 11.5,
                             fontWeight: FontWeight.w700,
-                            color: const Color(0xFF024D87),
+                            color: const Color(0xFFFDE047),
                           ),
                         ),
-                        const SizedBox(width: 4),
-                        const Icon(Icons.chevron_right,
-                            color: Color(0xFF024D87), size: 18),
+                        const SizedBox(width: 3),
+                        const Icon(
+                          Icons.arrow_forward_ios_rounded,
+                          color: Color(0xFFFDE047),
+                          size: 10,
+                        ),
                       ],
                     ),
-                  ),
+                  ],
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },
     );
   }
-
 }

@@ -2,66 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../bloc/template_gallery_bloc.dart';
-
-class _TemplateData {
-  final String title;
-  final String description;
-  final String imageUrl;
-  final String filterKey;
-  final bool isPremium;
-
-  const _TemplateData({
-    required this.title,
-    required this.description,
-    required this.imageUrl,
-    required this.filterKey,
-    required this.isPremium,
-  });
-}
-
-const _templates = [
-  _TemplateData(
-    title: 'Bank / Corporate / Office job',
-    description: 'Finance, corporate roles, and professional office careers.',
-    imageUrl:
-        'https://i.pinimg.com/1200x/59/f3/71/59f37113b5afae62dbee83a64fe1e113.jpg',
-    filterKey: 'Bank / Corporate / Office',
-    isPremium: true,
-  ),
-  _TemplateData(
-    title: 'Academic / Research',
-    description: 'Universities, research posts, and scholarly CV formats.',
-    imageUrl:
-        'https://i.pinimg.com/1200x/00/ff/e0/00ffe0ad64c57559ecea3347e0730e68.jpg',
-    filterKey: 'Academic / Research',
-    isPremium: false,
-  ),
-  _TemplateData(
-    title: 'Technical / IT / Engineering',
-    description: 'Software, systems, and engineering career tracks.',
-    imageUrl:
-        'https://i.pinimg.com/1200x/9a/ab/79/9aab79653565659c801d758569ae7c25.jpg',
-    filterKey: 'Technical / IT / Engineering',
-    isPremium: true,
-  ),
-  _TemplateData(
-    title: 'Creative / Media / Design — Graphic, Content, UI/UX',
-    description: 'Portfolio-friendly layouts for creative and digital roles.',
-    imageUrl:
-        'https://i.pinimg.com/736x/fa/38/0d/fa380d15ed1f202d027e73475ff3dd56.jpg',
-    filterKey: 'Creative / Media / Design',
-    isPremium: true,
-  ),
-  _TemplateData(
-    title:
-        'Government / NGO / Public Sector — Social, Volunteer, Govt jobs',
-    description: 'Public service, non-profit, and civic career paths.',
-    imageUrl:
-        'https://i.pinimg.com/736x/f7/e5/86/f7e5867a7d765d0222f6c7feb0d6832b.jpg',
-    filterKey: 'Government / NGO / Public Sector',
-    isPremium: false,
-  ),
-];
+import 'template_preview_dialog.dart';
 
 class TemplateGrid extends StatelessWidget {
   const TemplateGrid({super.key});
@@ -70,10 +11,23 @@ class TemplateGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<TemplateGalleryBloc, TemplateGalleryState>(
       builder: (context, state) {
-        final filtered = _templates.where((t) {
+        if (state.isLoading) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final filtered = state.templates.where((t) {
           if (state.selectedFilter == 'All Templates') return true;
-          return t.filterKey == state.selectedFilter;
+          return t['category'] == state.selectedFilter;
         }).toList();
+
+        if (filtered.isEmpty) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(32.0),
+              child: Text('No templates found for this category.'),
+            ),
+          );
+        }
 
         return LayoutBuilder(
           builder: (context, constraints) {
@@ -89,15 +43,13 @@ class TemplateGrid extends StatelessWidget {
               physics: const NeverScrollableScrollPhysics(),
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: crossAxisCount,
-                childAspectRatio: 0.75,
+                childAspectRatio: 0.72,
                 crossAxisSpacing: 24,
                 mainAxisSpacing: 24,
               ),
               itemCount: filtered.length,
               itemBuilder: (context, index) {
-                // templateId is 1-based (1–5)
-                final templateId = _templates.indexOf(filtered[index]) + 1;
-                return _TemplateCard(template: filtered[index], templateId: templateId);
+                return _TemplateCard(template: filtered[index]);
               },
             );
           },
@@ -108,10 +60,9 @@ class TemplateGrid extends StatelessWidget {
 }
 
 class _TemplateCard extends StatefulWidget {
-  final _TemplateData template;
-  final int templateId;
+  final dynamic template;
 
-  const _TemplateCard({required this.template, required this.templateId});
+  const _TemplateCard({required this.template});
 
   @override
   State<_TemplateCard> createState() => _TemplateCardState();
@@ -120,222 +71,287 @@ class _TemplateCard extends StatefulWidget {
 class _TemplateCardState extends State<_TemplateCard> {
   bool _isHovered = false;
 
+  Color _parsePrimaryColor(dynamic template) {
+    try {
+      final layoutSource = template['layout_source'];
+      if (layoutSource is Map && layoutSource['primary_color'] != null) {
+        final hex =
+            layoutSource['primary_color'].toString().replaceAll('#', '');
+        if (hex.length == 6) {
+          return Color(int.parse('FF$hex', radix: 16));
+        }
+      }
+    } catch (_) {}
+    return const Color(0xFF024D87);
+  }
+
+  void _onSelect() {
+    final t = widget.template;
+    final isPremium = t['is_premium'] == 1 || t['is_premium'] == true;
+    context.read<TemplateGalleryBloc>().add(
+          SelectTemplate(
+            title: t['name'] ?? 'Unknown Template',
+            isPremium: isPremium,
+            templateId: t['id'],
+          ),
+        );
+  }
+
+  void _openPreview() {
+    showTemplatePreviewModal(
+      context: context,
+      template: widget.template,
+      onUseTemplate: _onSelect,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = widget.template;
+    final isPremium = t['is_premium'] == 1 || t['is_premium'] == true;
+    final primaryColor = _parsePrimaryColor(t);
+    final title = t['name'] ?? 'Professional CV';
+    final category = (t['category'] ?? 'General').toString();
+    final description = t['description'] ?? 'Clean, modern resume layout';
+
+    final rawThumb = t['thumbnail_url']?.toString() ?? '';
+    final rawLayout = t['layout_source']?['layout']?.toString() ?? 'single_column';
+    final isPlaceholder = rawThumb.isEmpty ||
+        rawThumb.contains('placehold.co') ||
+        rawThumb.contains('placeholder.com');
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 500),
+        duration: const Duration(milliseconds: 300),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
               color: _isHovered
-                  ? (t.isPremium
-                      ? const Color(0xFF024D87).withValues(alpha: 0.12)
-                      : Colors.black.withValues(alpha: 0.08))
-                  : Colors.black.withValues(alpha: 0.04),
-              blurRadius: _isHovered ? 40 : 20,
+                  ? primaryColor.withValues(alpha: 0.16)
+                  : Colors.black.withValues(alpha: 0.05),
+              blurRadius: _isHovered ? 28 : 14,
               offset: Offset(0, _isHovered ? 10 : 4),
             ),
           ],
+          border: Border.all(
+            color: _isHovered
+                ? primaryColor.withValues(alpha: 0.4)
+                : const Color(0xFFE2E8F0),
+            width: _isHovered ? 1.5 : 1,
+          ),
         ),
         clipBehavior: Clip.antiAlias,
         child: Column(
           children: [
+            // ── Top Visual Thumbnail / CV Mockup ───────────────────────────
             Expanded(
-              flex: 5,
+              flex: 6,
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  Image.network(
-                    t.imageUrl,
-                    fit: BoxFit.cover,
-                    loadingBuilder: (context, child, loadingProgress) {
-                      if (loadingProgress == null) return child;
-                      return Container(
-                        color: const Color(0xFFF3F4F5),
-                        alignment: Alignment.center,
-                        child: SizedBox(
-                          width: 28,
-                          height: 28,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: const Color(0xFF024D87).withValues(
-                              alpha: 0.6,
+                  GestureDetector(
+                    onTap: _openPreview,
+                    child: isPlaceholder
+                        ? _TemplateThumbnailIllustration(
+                            primaryColor: primaryColor,
+                            title: title,
+                            category: category,
+                            layout: rawLayout,
+                            isHovered: _isHovered,
+                          )
+                        : Image.network(
+                            rawThumb,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) =>
+                                _TemplateThumbnailIllustration(
+                              primaryColor: primaryColor,
+                              title: title,
+                              category: category,
+                              layout: rawLayout,
+                              isHovered: _isHovered,
                             ),
-                            value: loadingProgress.expectedTotalBytes != null
-                                ? loadingProgress.cumulativeBytesLoaded /
-                                    loadingProgress.expectedTotalBytes!
-                                : null,
                           ),
-                        ),
-                      );
-                    },
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        color: const Color(0xFFF3F4F5),
-                        alignment: Alignment.center,
-                        child: Icon(
-                          Icons.broken_image_outlined,
-                          size: 40,
-                          color: Colors.grey.shade400,
-                        ),
-                      );
-                    },
                   ),
+
+                  // Free / Pro Badge
                   Positioned(
-                    top: 16,
-                    right: 16,
+                    top: 14,
+                    right: 14,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
+                        horizontal: 10,
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: t.isPremium
-                            ? const Color(0xFF51B1E1)
-                            : const Color(0xFF586158),
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: t.isPremium
-                            ? [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.1),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
-                                )
-                              ]
-                            : null,
+                        color: isPremium
+                            ? const Color(0xFF024D87)
+                            : const Color(0xFF10B981),
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.15),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
                       child: Text(
-                        t.isPremium ? 'PREMIUM TEMPLATES' : 'FREE TEMPLATES',
+                        isPremium ? 'PRO' : 'FREE',
                         style: GoogleFonts.inter(
                           fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.0,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5,
                           color: Colors.white,
                         ),
                       ),
                     ),
                   ),
+
+                  // Quick Preview Hover Action
+                  if (_isHovered)
+                    Positioned.fill(
+                      child: GestureDetector(
+                        onTap: _openPreview,
+                        child: Container(
+                          color: Colors.black.withValues(alpha: 0.35),
+                          alignment: Alignment.center,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.2),
+                                  blurRadius: 10,
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.visibility_rounded,
+                                    size: 16, color: primaryColor),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Preview Template',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: primaryColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
+
+            // ── Card Details & Action Buttons ──────────────────────────────
             Expanded(
               flex: 4,
               child: Padding(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
+                    Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                t.title,
+                        Row(
+                          children: [
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                color: primaryColor,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                title,
                                 style: GoogleFonts.manrope(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w700,
-                                  color: const Color(0xFF191C1D),
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                  color: const Color(0xFF1E293B),
                                 ),
+                                overflow: TextOverflow.ellipsis,
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                t.description,
-                                style: GoogleFonts.inter(
-                                  fontSize: 14,
-                                  color: const Color(0xFF3E4A3C),
-                                ),
-                              ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
-                        if (t.isPremium)
-                          const Icon(
-                            Icons.star,
-                            color: Color(0xFF024D87),
-                            size: 24,
+                        const SizedBox(height: 4),
+                        Text(
+                          description,
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color: const Color(0xFF64748B),
+                            height: 1.3,
                           ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ],
                     ),
+
+                    // Action buttons
                     Row(
                       children: [
+                        // Preview Button
                         Expanded(
-                          child: GestureDetector(
-                            onTap: () {
-                              context.read<TemplateGalleryBloc>().add(
-                                    SelectTemplate(
-                                      title: t.title,
-                                      isPremium: t.isPremium,
-                                      templateId: widget.templateId,
-                                    ),
-                                  );
-                            },
-                            child: Container(
-                              alignment: Alignment.center,
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              decoration: BoxDecoration(
-                                gradient: t.isPremium
-                                    ? const LinearGradient(
-                                        colors: [
-                                          Color(0xFF024D87),
-                                          Color(0xFF28A745),
-                                        ],
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                      )
-                                    : const LinearGradient(
-                                        colors: [
-                                          Color(0xFFBFC9BF),
-                                          Color(0xFFD9DADB),
-                                        ],
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                      ),
-                                borderRadius: BorderRadius.circular(12),
-                                border: !t.isPremium
-                                    ? Border.all(
-                                        color: const Color(0xFFBDCAB9)
-                                            .withValues(alpha: 0.3),
-                                        width: 0.5,
-                                      )
-                                    : null,
+                          child: OutlinedButton.icon(
+                            onPressed: _openPreview,
+                            icon: const Icon(Icons.visibility_outlined, size: 15),
+                            label: const Text('Preview'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFF334155),
+                              side: const BorderSide(color: Color(0xFFCBD5E1)),
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
                               ),
-                              child: Text(
-                                'Live Preview',
-                                style: GoogleFonts.inter(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 0.5,
-                                  color: t.isPremium
-                                      ? Colors.white
-                                      : const Color(0xFF151E17),
-                                ),
+                              textStyle: GoogleFonts.inter(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF3F4F5),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(
-                            Icons.favorite_border,
-                            color: Color(0xFF3E4A3C),
-                            size: 24,
+                        const SizedBox(width: 8),
+
+                        // Use Template Button
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: _onSelect,
+                            icon: const Icon(Icons.check_rounded, size: 15),
+                            label: const Text('Select'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: primaryColor,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              elevation: 0,
+                              textStyle: GoogleFonts.inter(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                           ),
                         ),
                       ],
@@ -346,6 +362,368 @@ class _TemplateCardState extends State<_TemplateCard> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// A neat, realistic mini CV document mockup rendered natively in Flutter
+class _TemplateThumbnailIllustration extends StatelessWidget {
+  final Color primaryColor;
+  final String title;
+  final String category;
+  final String layout;
+  final bool isHovered;
+
+  const _TemplateThumbnailIllustration({
+    required this.primaryColor,
+    required this.title,
+    required this.category,
+    required this.layout,
+    required this.isHovered,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: const Color(0xFFF1F5F9),
+      padding: const EdgeInsets.all(12),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: _buildLayoutPreview(),
+      ),
+    );
+  }
+
+  Widget _buildLayoutPreview() {
+    if (layout == 'sidebar_left') {
+      return _buildSidebarThumbnail();
+    } else if (layout == 'two_column') {
+      return _buildTwoColumnThumbnail();
+    } else {
+      return _buildSingleColumnThumbnail();
+    }
+  }
+
+  // ── Thumbnail for Sidebar Left ──────────────────────────────────────────
+  Widget _buildSidebarThumbnail() {
+    return Row(
+      children: [
+        // Mini Left Sidebar
+        Container(
+          width: 58,
+          color: primaryColor,
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                width: 22,
+                height: 22,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.25),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.person, size: 14, color: Colors.white),
+              ),
+              const SizedBox(height: 6),
+              Container(width: 36, height: 3, color: Colors.white.withValues(alpha: 0.8)),
+              const SizedBox(height: 2),
+              Container(width: 24, height: 2, color: Colors.white.withValues(alpha: 0.6)),
+              const SizedBox(height: 12),
+              Container(width: 40, height: 2, color: Colors.white.withValues(alpha: 0.5)),
+              const SizedBox(height: 3),
+              Container(width: 32, height: 2, color: Colors.white.withValues(alpha: 0.5)),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(3),
+                ),
+                child: const Text('SIDEBAR', style: TextStyle(fontSize: 5, color: Colors.white, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+        ),
+        // Mini Right Body
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.inter(fontSize: 8, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B)),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                _miniLine(widthRatio: 0.4, color: primaryColor, height: 2.5),
+                const SizedBox(height: 8),
+                _miniLine(widthRatio: 0.35, color: primaryColor, height: 3),
+                const SizedBox(height: 3),
+                _miniLine(widthRatio: 0.9, color: const Color(0xFFE2E8F0)),
+                const SizedBox(height: 2),
+                _miniLine(widthRatio: 0.75, color: const Color(0xFFE2E8F0)),
+                const SizedBox(height: 8),
+                _miniLine(widthRatio: 0.4, color: primaryColor, height: 3),
+                const SizedBox(height: 3),
+                _miniCard(primaryColor: primaryColor),
+                const SizedBox(height: 3),
+                _miniCard(primaryColor: primaryColor),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── Thumbnail for Two Column ────────────────────────────────────────────
+  Widget _buildTwoColumnThumbnail() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Mini Header
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FAFC),
+            border: Border(bottom: BorderSide(color: primaryColor, width: 2)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: GoogleFonts.inter(fontSize: 8, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A)),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                decoration: BoxDecoration(color: primaryColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(2)),
+                child: Text('2-COL', style: TextStyle(fontSize: 5, color: primaryColor, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+        ),
+        // Two Side by Side mini columns
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.all(6.0),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Left Column
+                Expanded(
+                  flex: 4,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _miniLine(widthRatio: 0.7, color: primaryColor, height: 3),
+                      const SizedBox(height: 3),
+                      _miniCard(primaryColor: primaryColor),
+                      const SizedBox(height: 3),
+                      _miniCard(primaryColor: primaryColor),
+                      const SizedBox(height: 6),
+                      _miniLine(widthRatio: 0.6, color: primaryColor, height: 3),
+                      const SizedBox(height: 3),
+                      _miniChip(color: primaryColor),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 6),
+                // Right Column
+                Expanded(
+                  flex: 6,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _miniLine(widthRatio: 0.5, color: primaryColor, height: 3),
+                      const SizedBox(height: 3),
+                      _miniLine(widthRatio: 0.95, color: const Color(0xFFE2E8F0)),
+                      const SizedBox(height: 2),
+                      _miniLine(widthRatio: 0.8, color: const Color(0xFFE2E8F0)),
+                      const SizedBox(height: 6),
+                      _miniLine(widthRatio: 0.55, color: primaryColor, height: 3),
+                      const SizedBox(height: 3),
+                      _miniLine(widthRatio: 0.9, color: const Color(0xFFE2E8F0)),
+                      const SizedBox(height: 2),
+                      _miniLine(widthRatio: 0.75, color: const Color(0xFFE2E8F0)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── Thumbnail for Classic Single Column ─────────────────────────────────
+  Widget _buildSingleColumnThumbnail() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Classic Header
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+          color: primaryColor,
+          child: Row(
+            children: [
+              Container(
+                width: 18,
+                height: 18,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.3),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.person, size: 11, color: Colors.white),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: GoogleFonts.inter(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.white),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      category.toUpperCase(),
+                      style: GoogleFonts.inter(fontSize: 6, color: Colors.white.withValues(alpha: 0.8)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        // Stacked Single Column Body
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _miniLine(widthRatio: 0.4, color: primaryColor, height: 3.5),
+                const SizedBox(height: 3),
+                _miniLine(widthRatio: 0.95, color: const Color(0xFFE2E8F0)),
+                const SizedBox(height: 2),
+                _miniLine(widthRatio: 0.8, color: const Color(0xFFE2E8F0)),
+                const SizedBox(height: 6),
+                _miniLine(widthRatio: 0.35, color: primaryColor, height: 3.5),
+                const SizedBox(height: 3),
+                _miniCard(primaryColor: primaryColor),
+                const SizedBox(height: 3),
+                _miniCard(primaryColor: primaryColor),
+                const SizedBox(height: 6),
+                _miniLine(widthRatio: 0.3, color: primaryColor, height: 3.5),
+                const SizedBox(height: 3),
+                Row(
+                  children: [
+                    _miniChip(color: primaryColor),
+                    const SizedBox(width: 4),
+                    _miniChip(color: primaryColor),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _miniLine({
+    required double widthRatio,
+    required Color color,
+    double height = 3,
+  }) {
+    return FractionallySizedBox(
+      widthFactor: widthRatio,
+      child: Container(
+        height: height,
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(2),
+        ),
+      ),
+    );
+  }
+
+  Widget _miniCard({required Color primaryColor}) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 3,
+            height: 12,
+            decoration: BoxDecoration(
+              color: primaryColor,
+              borderRadius: BorderRadius.circular(1),
+            ),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 60,
+                  height: 3,
+                  color: const Color(0xFF64748B),
+                ),
+                const SizedBox(height: 2),
+                Container(
+                  width: 40,
+                  height: 2.5,
+                  color: const Color(0xFF94A3B8),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _miniChip({required Color color}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Container(
+        width: 18,
+        height: 2.5,
+        color: color,
       ),
     );
   }

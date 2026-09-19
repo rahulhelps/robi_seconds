@@ -17,6 +17,7 @@ import 'cv_steps/step_work_experience.dart';
 import 'cv_steps/step_languages.dart';
 import 'cv_steps/step_review_submit.dart';
 import 'pdf_preview_screen.dart';
+import '../../data/cv_pdf_generator.dart';
 
 /// Master multi-step CV builder screen.
 /// Expects [CvBuilderBloc] to already be in the widget tree.
@@ -70,21 +71,35 @@ class _CvBuilderScreenState extends State<CvBuilderScreen> {
   @override
   Widget build(BuildContext context) {
     return BlocListener<CvBloc, CvState>(
-      listener: (context, state) {
+      listener: (context, state) async {
         if (state is CvLoaded && state.cvId != null) {
-          // Refresh profile data (CV count and history)
-          print("CV created → refreshing profile");
+          debugPrint("CV created → refreshing profile");
           context.read<ProfileBloc>().add(const FetchProfile(forceNetwork: true));
 
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => PdfPreviewScreen.fromId(
-                cvId: state.cvId!,
-                bearerToken: state.token ?? '',
+          try {
+            final pdfBytes = await CvPdfGenerator().generatePdf(state.model);
+            if (!context.mounted) return;
+            await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => PdfPreviewScreen.fromBytes(
+                  pdfBytes: pdfBytes,
+                ),
               ),
-            ),
-          );
+            );
+          } catch (e) {
+            debugPrint('[CvBuilderScreen] PDF generation error: $e');
+            if (!context.mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text('Failed to generate PDF preview. Please try again.'),
+                backgroundColor: const Color(0xFFBA1A1A),
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
+              ),
+            );
+          }
         } else if (state is CvError) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -121,6 +136,63 @@ class _CvBuilderScreenState extends State<CvBuilderScreen> {
                         title: 'Curriculum Vitae',
                         subtitle: 'Fill in your details below to build your CV',
                         badgeText: tplName,
+                        trailing: GestureDetector(
+                          onTap: () async {
+                            try {
+                              final pdfBytes = await CvPdfGenerator()
+                                  .generatePdf(cvState.model);
+                              if (!context.mounted) return;
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => PdfPreviewScreen.fromBytes(
+                                    pdfBytes: pdfBytes,
+                                  ),
+                                ),
+                              );
+                            } catch (e) {
+                              if (!context.mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Preview error: $e'),
+                                  backgroundColor: const Color(0xFFBA1A1A),
+                                ),
+                              );
+                            }
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.35),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: const [
+                                Icon(
+                                  Icons.visibility_outlined,
+                                  color: Colors.white,
+                                  size: 14,
+                                ),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Preview',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                         onBackPressed: () => _currentStep == 0
                             ? Navigator.pop(context)
                             : _prevStep(),

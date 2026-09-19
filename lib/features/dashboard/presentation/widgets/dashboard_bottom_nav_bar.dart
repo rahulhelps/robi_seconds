@@ -22,19 +22,24 @@ const _navItems = [
     label: 'HOME',
   ),
   _NavItem(
-    icon: Icons.person_outline,
-    activeIcon: Icons.person,
-    label: 'PROFILE',
-  ),
-  _NavItem(
-    icon: Icons.work_outline,
-    activeIcon: Icons.work,
-    label: 'SERVICES',
+    icon: Icons.description_outlined,
+    activeIcon: Icons.description,
+    label: 'DOCUMENTS',
   ),
   _NavItem(
     icon: Icons.payments_outlined,
     activeIcon: Icons.payments,
     label: 'PAYMENTS',
+  ),
+  _NavItem(
+    icon: Icons.quiz_outlined,
+    activeIcon: Icons.quiz,
+    label: 'MOCK TEST',
+  ),
+  _NavItem(
+    icon: Icons.person_outline,
+    activeIcon: Icons.person,
+    label: 'PROFILE',
   ),
 ];
 
@@ -102,12 +107,12 @@ class _NavTile extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
           color: isActive
               ? Colors.white.withValues(alpha: 0.15)
               : Colors.white.withValues(alpha: 0),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -115,15 +120,15 @@ class _NavTile extends StatelessWidget {
             Icon(
               isActive ? item.activeIcon : item.icon,
               color: color,
-              size: 24,
+              size: 22,
             ),
             const SizedBox(height: 2),
             Text(
               item.label,
               style: GoogleFonts.inter(
-                fontSize: 10,
+                fontSize: 9,
                 fontWeight: FontWeight.w600,
-                letterSpacing: 0.6,
+                letterSpacing: 0.4,
                 color: color,
               ),
             ),

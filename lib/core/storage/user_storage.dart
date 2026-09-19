@@ -9,6 +9,7 @@ class UserStorage {
   static const _keyIsSubscriptionActive = 'isSubscriptionActive';
   static const _keyPhone = 'userPhone';
 
+
   // ── Save ─────────────────────────────────────────────────────────────────
 
   /// Saves the full user map as a JSON string.
@@ -64,6 +65,8 @@ class UserStorage {
   static Future<String?> getPhone() async {
     return _storage.read(key: _keyPhone);
   }
+
+
 
   // ── Clear ────────────────────────────────────────────────────────────────
 

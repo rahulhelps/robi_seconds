@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import '../../../../core/services/auth_service.dart';
 import '../domain/sop_model.dart';
 
@@ -11,43 +12,43 @@ class SopDatasource {
       model.toJson(),
     );
 
-    print("[SopDatasource] createSop response: $responseMap");
+    debugPrint("[SopDatasource] createSop response: $responseMap");
 
-    final data = responseMap['data'];
-    if (data == null) {
-      throw 'Server returned no data for SOP.';
-    }
-
-    if (data is Map<String, dynamic>) {
+    final data = responseMap['data'] as Map<String, dynamic>? ?? responseMap;
+    if (data.containsKey('id') || data.containsKey('_id') || data.containsKey('header')) {
       return SavedSop.fromJson(data);
     }
     
-    throw 'Invalid SOP response format.';
+    throw 'Server returned invalid SOP format.';
   }
 
   /// Calls GET /sop and returns a list of [SavedSop].
   Future<List<SavedSop>> fetchSopHistory() async {
-    final responseMap = await AuthService.authenticatedGet('/sop');
+    try {
+      final responseMap = await AuthService.authenticatedGet('/sop');
 
-    print("[SopDatasource] fetchSopHistory response: $responseMap");
+      debugPrint("[SopDatasource] fetchSopHistory response: $responseMap");
 
-    final rawData = responseMap['data'];
-    if (rawData is! List) {
+      final rawData = responseMap['data'];
+      if (rawData is! List) {
+        return [];
+      }
+
+      return rawData
+          .whereType<Map<String, dynamic>>()
+          .map(SavedSop.fromJson)
+          .toList();
+    } catch (e) {
+      debugPrint("[SopDatasource] fetchSopHistory error: $e");
       return [];
     }
-
-    return rawData
-        .whereType<Map<String, dynamic>>()
-        .map(SavedSop.fromJson)
-        .toList();
   }
 
   /// Calls GET /sop/:id and returns a single [SavedSop].
   Future<SavedSop> getSopDetails(String id) async {
     final responseMap = await AuthService.authenticatedGet('/sop/$id');
-    final data = responseMap['data'];
-    if (data == null) throw 'SOP details not found.';
-    return SavedSop.fromJson(data as Map<String, dynamic>);
+    final data = responseMap['data'] as Map<String, dynamic>? ?? responseMap;
+    return SavedSop.fromJson(data);
   }
 
   /// Calls DELETE /sop/:id to delete an SOP.

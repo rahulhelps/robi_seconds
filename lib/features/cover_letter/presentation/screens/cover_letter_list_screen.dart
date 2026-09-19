@@ -186,7 +186,14 @@ class _CoverLetterListView extends StatelessWidget {
                                             borderRadius: BorderRadius.circular(8),
                                             child: InkWell(
                                               borderRadius: BorderRadius.circular(8),
-                                              onTap: () {},
+                                               onTap: () {
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  const SnackBar(
+                                                    content: Text('Delete is not available yet.'),
+                                                    behavior: SnackBarBehavior.floating,
+                                                  ),
+                                                );
+                                              },
                                               child: const Padding(
                                                 padding: EdgeInsets.all(8.0),
                                                 child: Icon(Icons.delete_outline_rounded, color: Color(0xFFBA1A1A), size: 20),

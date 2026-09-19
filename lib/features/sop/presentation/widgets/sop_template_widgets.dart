@@ -5,21 +5,72 @@ import '../../domain/sop_template.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Reusable SOP template gallery widgets.
-// All widgets are extracted from the template screen for a clean build().
+// Cute, Material 3 academic document previews with realistic A4 paper framing,
+// university emblems, category tags, and responsive layouts.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Animated grid card for a single template.
+/// Animated grid card for a single SOP template.
 class TemplateCard extends StatelessWidget {
   final SopTemplate template;
   final bool isSelected;
   final VoidCallback onTap;
+  final VoidCallback? onPreview;
 
   const TemplateCard({
     super.key,
     required this.template,
     required this.isSelected,
     required this.onTap,
+    this.onPreview,
   });
+
+  Color get _accentColor {
+    switch (template.id) {
+      case 'classic_academic': return const Color(0xFF0D1B2A);
+      case 'modern_professional': return const Color(0xFF024D87);
+      case 'research_focused': return const Color(0xFF1E3A8A);
+      case 'career_change': return const Color(0xFF4F46E5);
+      case 'engineering_tech': return const Color(0xFF0F172A);
+      case 'business_mba': return const Color(0xFF1C1C1E);
+      case 'medical_health': return const Color(0xFF0D9488);
+      case 'arts_humanities': return const Color(0xFF78350F);
+      case 'international_student': return const Color(0xFF0369A1);
+      case 'scholarship_application': return const Color(0xFF0B192C);
+      default: return AppColors.primary;
+    }
+  }
+
+  String get _categoryTag {
+    switch (template.id) {
+      case 'classic_academic': return 'IVY LEAGUE';
+      case 'modern_professional': return 'ACADEMIC PRO';
+      case 'research_focused': return 'RESEARCH LAB';
+      case 'career_change': return 'CAREER PIVOT';
+      case 'engineering_tech': return 'STEM & TECH';
+      case 'business_mba': return 'MBA & MGMT';
+      case 'medical_health': return 'HEALTHCARE';
+      case 'arts_humanities': return 'HUMANITIES';
+      case 'international_student': return 'GLOBAL STUDY';
+      case 'scholarship_application': return 'SCHOLARSHIP';
+      default: return 'ACADEMIC';
+    }
+  }
+
+  IconData get _icon {
+    switch (template.id) {
+      case 'classic_academic': return Icons.school_rounded;
+      case 'modern_professional': return Icons.history_edu_rounded;
+      case 'research_focused': return Icons.science_rounded;
+      case 'career_change': return Icons.sync_alt_rounded;
+      case 'engineering_tech': return Icons.code_rounded;
+      case 'business_mba': return Icons.insights_rounded;
+      case 'medical_health': return Icons.medical_services_rounded;
+      case 'arts_humanities': return Icons.auto_stories_rounded;
+      case 'international_student': return Icons.public_rounded;
+      case 'scholarship_application': return Icons.emoji_events_rounded;
+      default: return Icons.school_rounded;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -29,17 +80,17 @@ class TemplateCard extends StatelessWidget {
         duration: const Duration(milliseconds: 220),
         curve: Curves.easeOut,
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: Colors.white,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
-            color: isSelected ? AppColors.primary : Colors.transparent,
-            width: 2.5,
+            color: isSelected ? _accentColor : const Color(0xFFE2E8F0),
+            width: isSelected ? 2.5 : 1,
           ),
           boxShadow: [
             BoxShadow(
               color: isSelected
-                  ? AppColors.primary.withValues(alpha: 0.15)
-                  : Colors.black.withValues(alpha: 0.06),
+                  ? _accentColor.withValues(alpha: 0.18)
+                  : Colors.black.withValues(alpha: 0.05),
               blurRadius: isSelected ? 16 : 10,
               offset: const Offset(0, 4),
               spreadRadius: isSelected ? 1 : 0,
@@ -50,50 +101,146 @@ class TemplateCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Thumbnail preview area
+            // ── Top: Realistic Mini A4 Academic Document Preview ───────────
             Expanded(
-              flex: 3,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  TemplateThumbnail(templateId: template.id),
-                  if (template.isPremium)
-                    const Positioned(top: 8, right: 8, child: PremiumBadge()),
-                  if (isSelected)
-                    const Positioned(
-                      bottom: 8,
-                      right: 8,
-                      child: SelectionCheckmark(),
+              flex: 5,
+              child: Container(
+                color: const Color(0xFFF8FAFC),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    // A4 Paper Sheet
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(10, 8, 10, 0),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.07),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: TemplateThumbnail(templateId: template.id),
+                      ),
                     ),
-                ],
+
+                    // Quick Eye Preview Button
+                    if (onPreview != null)
+                      Positioned(
+                        top: 8,
+                        left: 8,
+                        child: GestureDetector(
+                          onTap: onPreview,
+                          child: Container(
+                            padding: const EdgeInsets.all(5),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.95),
+                              shape: BoxShape.circle,
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Colors.black26,
+                                  blurRadius: 4,
+                                  offset: Offset(0, 1),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.remove_red_eye_rounded,
+                              size: 14,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                    // Premium Badge
+                    if (template.isPremium)
+                      const Positioned(top: 8, right: 8, child: PremiumBadge()),
+
+                    // Selection Checkmark
+                    if (isSelected)
+                      Positioned(
+                        bottom: 4,
+                        right: 8,
+                        child: Container(
+                          width: 24,
+                          height: 24,
+                          decoration: BoxDecoration(
+                            color: _accentColor,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: _accentColor.withValues(alpha: 0.4),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(Icons.check_rounded, color: Colors.white, size: 15),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
-            // Template info
+
+            // ── Bottom: Template Info ──────────────────────────────────────
             Expanded(
-              flex: 2,
+              flex: 3,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: _accentColor.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(_icon, size: 9, color: _accentColor),
+                              const SizedBox(width: 3),
+                              Text(
+                                _categoryTag,
+                                style: GoogleFonts.inter(
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.w800,
+                                  color: _accentColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
                     Text(
                       template.name,
                       style: GoogleFonts.manrope(
-                        fontSize: 13,
+                        fontSize: 12.5,
                         fontWeight: FontWeight.w700,
                         color: AppColors.textPrimary,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 3),
                     Text(
                       template.description,
                       style: GoogleFonts.inter(
-                        fontSize: 9.5,
+                        fontSize: 9,
                         color: AppColors.textSecondary,
-                        height: 1.4,
+                        height: 1.25,
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -101,6 +248,216 @@ class TemplateCard extends StatelessWidget {
                   ],
                 ),
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Sleek, compact list card for a single SOP template.
+class TemplateListItem extends StatelessWidget {
+  final SopTemplate template;
+  final bool isSelected;
+  final VoidCallback onTap;
+  final VoidCallback? onPreview;
+
+  const TemplateListItem({
+    super.key,
+    required this.template,
+    required this.isSelected,
+    required this.onTap,
+    this.onPreview,
+  });
+
+  Color get _accentColor {
+    switch (template.id) {
+      case 'classic_academic': return const Color(0xFF0D1B2A);
+      case 'modern_professional': return const Color(0xFF024D87);
+      case 'research_focused': return const Color(0xFF1E3A8A);
+      case 'career_change': return const Color(0xFF4F46E5);
+      case 'engineering_tech': return const Color(0xFF0F172A);
+      case 'business_mba': return const Color(0xFF1C1C1E);
+      case 'medical_health': return const Color(0xFF0D9488);
+      case 'arts_humanities': return const Color(0xFF78350F);
+      case 'international_student': return const Color(0xFF0369A1);
+      case 'scholarship_application': return const Color(0xFF0B192C);
+      default: return AppColors.primary;
+    }
+  }
+
+  String get _categoryTag {
+    switch (template.id) {
+      case 'classic_academic': return 'IVY LEAGUE';
+      case 'modern_professional': return 'ACADEMIC PRO';
+      case 'research_focused': return 'RESEARCH LAB';
+      case 'career_change': return 'CAREER PIVOT';
+      case 'engineering_tech': return 'STEM & TECH';
+      case 'business_mba': return 'MBA & MGMT';
+      case 'medical_health': return 'HEALTHCARE';
+      case 'arts_humanities': return 'HUMANITIES';
+      case 'international_student': return 'GLOBAL STUDY';
+      case 'scholarship_application': return 'SCHOLARSHIP';
+      default: return 'ACADEMIC';
+    }
+  }
+
+  IconData get _icon {
+    switch (template.id) {
+      case 'classic_academic': return Icons.school_rounded;
+      case 'modern_professional': return Icons.history_edu_rounded;
+      case 'research_focused': return Icons.science_rounded;
+      case 'career_change': return Icons.sync_alt_rounded;
+      case 'engineering_tech': return Icons.code_rounded;
+      case 'business_mba': return Icons.insights_rounded;
+      case 'medical_health': return Icons.medical_services_rounded;
+      case 'arts_humanities': return Icons.auto_stories_rounded;
+      case 'international_student': return Icons.public_rounded;
+      case 'scholarship_application': return Icons.emoji_events_rounded;
+      default: return Icons.school_rounded;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+        decoration: BoxDecoration(
+          color: isSelected ? _accentColor.withValues(alpha: 0.04) : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected ? _accentColor : const Color(0xFFE2E8F0),
+            width: isSelected ? 2 : 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: isSelected
+                  ? _accentColor.withValues(alpha: 0.12)
+                  : Colors.black.withValues(alpha: 0.03),
+              blurRadius: isSelected ? 8 : 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            // Leading: Themed emblem
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: isSelected ? _accentColor : _accentColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                _icon,
+                color: isSelected ? Colors.white : _accentColor,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 12),
+
+            // Middle: Name, tag, description
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          template.name,
+                          style: GoogleFonts.manrope(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF0F172A),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: _accentColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                        child: Text(
+                          _categoryTag,
+                          style: GoogleFonts.inter(
+                            fontSize: 8.5,
+                            fontWeight: FontWeight.w800,
+                            color: _accentColor,
+                          ),
+                        ),
+                      ),
+                      if (template.isPremium) ...[
+                        const SizedBox(width: 6),
+                        const PremiumBadge(),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    template.description,
+                    style: GoogleFonts.inter(
+                      fontSize: 11.5,
+                      color: const Color(0xFF64748B),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+
+            // Trailing: Eye Preview & Selection Ring
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (onPreview != null)
+                  GestureDetector(
+                    onTap: onPreview,
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF1F5F9),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      child: const Icon(
+                        Icons.remove_red_eye_rounded,
+                        size: 16,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+                const SizedBox(width: 8),
+                Container(
+                  width: 22,
+                  height: 22,
+                  decoration: BoxDecoration(
+                    color: isSelected ? _accentColor : Colors.transparent,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: isSelected ? _accentColor : const Color(0xFFCBD5E1),
+                      width: isSelected ? 0 : 1.8,
+                    ),
+                  ),
+                  child: isSelected
+                      ? const Icon(Icons.check_rounded, color: Colors.white, size: 14)
+                      : null,
+                ),
+              ],
             ),
           ],
         ),
@@ -141,15 +498,15 @@ class PremiumBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
       decoration: BoxDecoration(
         gradient: AppColors.goldGradient,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         boxShadow: [
           BoxShadow(
             color: AppColors.gold.withValues(alpha: 0.4),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
+            blurRadius: 5,
+            offset: const Offset(0, 1.5),
           ),
         ],
       ),
@@ -157,9 +514,9 @@ class PremiumBadge extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           const Icon(Icons.star_rounded, color: Colors.white, size: 9),
-          const SizedBox(width: 3),
+          const SizedBox(width: 2.5),
           Text(
-            'PREMIUM',
+            'PRO',
             style: GoogleFonts.inter(
               fontSize: 8,
               fontWeight: FontWeight.w800,
@@ -181,20 +538,20 @@ class SelectionCheckmark extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 26,
-      height: 26,
+      width: 24,
+      height: 24,
       decoration: const BoxDecoration(
         color: AppColors.primary,
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
             color: Color(0x40024D87),
-            blurRadius: 8,
+            blurRadius: 6,
             offset: Offset(0, 2),
           ),
         ],
       ),
-      child: const Icon(Icons.check_rounded, color: Colors.white, size: 16),
+      child: const Icon(Icons.check_rounded, color: Colors.white, size: 15),
     );
   }
 }
@@ -267,7 +624,7 @@ class UseTemplateButton extends StatelessWidget {
 
 // ═════════════════════════════════════════════════════════════════════════════
 // Individual template thumbnail implementations
-// Each uses a unique mock-document layout with the template's real colors
+// Realistic academic document previews with university headers & seals
 // ═════════════════════════════════════════════════════════════════════════════
 
 // ── Template 1: Classic Harvard ──────────────────────────────────────────────
@@ -275,26 +632,52 @@ class _HarvardThumb extends StatelessWidget {
   const _HarvardThumb();
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: Colors.white,
-      child: Column(
-        children: [
-          // Navy header bar
-          Container(
-            height: 36,
-            color: const Color(0xFF0D1B2A),
-            child: Center(
-              child: Container(
-                width: 60, height: 2,
-                color: const Color(0xFFD4A017),
+    return Column(
+      children: [
+        // Ivy League Crimson / Navy header with gold crest
+        Container(
+          height: 32,
+          color: const Color(0xFF0D1B2A),
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Row(
+            children: [
+              const Icon(Icons.school_rounded, color: Color(0xFFD4A017), size: 14),
+              const SizedBox(width: 5),
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 50,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Container(
+                    width: 32,
+                    height: 2.5,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFD4A017),
+                      borderRadius: BorderRadius.circular(1),
+                    ),
+                  ),
+                ],
               ),
-            ),
+            ],
           ),
-          const SizedBox(height: 8),
-          // Content lines
-          const _MockLines(accentColor: Color(0xFFD4A017), centered: true),
-        ],
-      ),
+        ),
+        Container(height: 2, color: const Color(0xFFD4A017)),
+        // Content lines
+        const Expanded(
+          child: Padding(
+            padding: EdgeInsets.all(8),
+            child: _MockLines(accentColor: Color(0xFF0D1B2A), centered: true),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -304,33 +687,47 @@ class _ModernMinimalThumb extends StatelessWidget {
   const _ModernMinimalThumb();
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: Colors.white,
-      child: Row(
-        children: [
-          // Blue left bar
-          Container(width: 4, color: const Color(0xFF024D87)),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 70, height: 10,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF024D87),
-                      borderRadius: BorderRadius.circular(2),
+    return Row(
+      children: [
+        // Deep blue left margin spine
+        Container(width: 5, color: const Color(0xFF024D87)),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 55,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF024D87),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 6),
-                  const _MockLines(accentColor: Color(0xFF024D87), dotPrefix: true),
-                ],
-              ),
+                    const Spacer(),
+                    Container(
+                      width: 14,
+                      height: 14,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF024D87).withValues(alpha: 0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.history_edu_rounded, size: 9, color: Color(0xFF024D87)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                const Expanded(
+                  child: _MockLines(accentColor: Color(0xFF024D87), dotPrefix: true),
+                ),
+              ],
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -340,69 +737,108 @@ class _ResearchThumb extends StatelessWidget {
   const _ResearchThumb();
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.all(10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Title centered
-          Center(
-            child: Container(
-              width: 80, height: 8,
-              decoration: BoxDecoration(
-                color: const Color(0xFF1E3A8A),
-                borderRadius: BorderRadius.circular(2),
+    return Column(
+      children: [
+        Container(
+          height: 28,
+          color: const Color(0xFF1E3A8A),
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Row(
+            children: [
+              const Icon(Icons.science_rounded, color: Colors.white, size: 13),
+              const SizedBox(width: 5),
+              Container(
+                width: 50,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.all(7),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Abstract Callout Box
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: const Color(0xFFBFDBFE), width: 0.8),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(width: 3, height: 10, color: const Color(0xFF1E3A8A)),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(width: 40, height: 3, color: const Color(0xFF1E3A8A)),
+                            const SizedBox(height: 2),
+                            Container(width: 60, height: 2, color: const Color(0xFF93C5FD)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 5),
+                const Expanded(
+                  child: _MockLines(accentColor: Color(0xFF1E3A8A), numbered: true),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 3),
-          Container(height: 1.5, color: const Color(0xFF1E3A8A)),
-          const SizedBox(height: 2),
-          Container(height: 0.5, color: const Color(0xFF1E3A8A)),
-          const SizedBox(height: 6),
-          // Abstract box
-          Container(
-            height: 22,
-            decoration: BoxDecoration(
-              color: const Color(0xFFE8EDF5),
-              border: Border.all(color: const Color(0xFFB0BFDB), width: 0.5),
-            ),
-          ),
-          const SizedBox(height: 6),
-          const _MockLines(accentColor: Color(0xFF1E3A8A), numbered: true),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
 
-// ── Template 4: Creative Modern (Career Change) ───────────────────────────────
+// ── Template 4: Career Change (Creative Modern) ───────────────────────────────
 class _CreativeThumb extends StatelessWidget {
   const _CreativeThumb();
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // Deep blue header with accent strip
         Container(
-          height: 40,
-          color: const Color(0xFF013A65),
-          child: Column(
+          height: 28,
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF4338CA), Color(0xFF6366F1)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Row(
             children: [
-              const Spacer(),
-              Container(height: 3, color: const Color(0xFF51B1E1)),
+              const Icon(Icons.sync_alt_rounded, color: Colors.white, size: 13),
+              const SizedBox(width: 5),
+              Container(
+                width: 52,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
             ],
           ),
         ),
-        Expanded(
-          child: Container(
-            color: Colors.white,
-            padding: const EdgeInsets.all(8),
-            child: const _MockLines(
-              accentColor: Color(0xFF024D87),
-              leftPill: true,
-            ),
+        const Expanded(
+          child: Padding(
+            padding: EdgeInsets.all(8),
+            child: _MockLines(accentColor: Color(0xFF4F46E5), leftPill: true),
           ),
         ),
       ],
@@ -415,42 +851,36 @@ class _TechThumb extends StatelessWidget {
   const _TechThumb();
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: const Color(0xFFF9FAFB),
-      child: Column(
-        children: [
-          // Light grey header with teal left bar
-          Container(
-            height: 34,
-            decoration: const BoxDecoration(
-              color: Color(0xFFF3F4F6),
-              border: Border(bottom: BorderSide(color: Color(0xFFE5E7EB))),
-            ),
-            child: Row(
-              children: [
-                Container(width: 4, color: const Color(0xFF10B981)),
-                const SizedBox(width: 8),
-                Container(
-                  width: 50, height: 8,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF111827),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(8),
-              child: const _MockLines(
-                accentColor: Color(0xFF10B981),
-                brackets: true,
+    return Column(
+      children: [
+        // Dark terminal header
+        Container(
+          height: 26,
+          color: const Color(0xFF0F172A),
+          padding: const EdgeInsets.symmetric(horizontal: 7),
+          child: Row(
+            children: [
+              Container(width: 4, height: 4, decoration: const BoxDecoration(color: Color(0xFFEF4444), shape: BoxShape.circle)),
+              const SizedBox(width: 3),
+              Container(width: 4, height: 4, decoration: const BoxDecoration(color: Color(0xFF10B981), shape: BoxShape.circle)),
+              const SizedBox(width: 6),
+              const Icon(Icons.code_rounded, color: Color(0xFF10B981), size: 11),
+              const SizedBox(width: 4),
+              Container(
+                width: 35,
+                height: 3.5,
+                decoration: BoxDecoration(color: Colors.white70, borderRadius: BorderRadius.circular(1.5)),
               ),
-            ),
+            ],
           ),
-        ],
-      ),
+        ),
+        const Expanded(
+          child: Padding(
+            padding: EdgeInsets.all(8),
+            child: _MockLines(accentColor: Color(0xFF10B981), brackets: true),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -460,55 +890,49 @@ class _ExecutiveThumb extends StatelessWidget {
   const _ExecutiveThumb();
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: Colors.white,
-      child: Column(
-        children: [
-          // Charcoal header
-          Container(
-            height: 40,
-            color: const Color(0xFF2C2C2C),
-            padding: const EdgeInsets.fromLTRB(8, 6, 8, 4),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 60, height: 8,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(1),
-                  ),
-                ),
-                const Spacer(),
-                Row(
-                  children: List.generate(
-                    3,
-                    (_) => Expanded(
-                      child: Container(
-                        margin: const EdgeInsets.only(right: 4),
-                        height: 5,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.4),
-                          borderRadius: BorderRadius.circular(1),
-                        ),
+    return Column(
+      children: [
+        // Charcoal header with metric chips
+        Container(
+          height: 32,
+          color: const Color(0xFF1C1C1E),
+          padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.insights_rounded, color: Color(0xFFF59E0B), size: 11),
+                  const SizedBox(width: 4),
+                  Container(width: 45, height: 4, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(1))),
+                ],
+              ),
+              const Spacer(),
+              Row(
+                children: List.generate(
+                  3,
+                  (_) => Expanded(
+                    child: Container(
+                      margin: const EdgeInsets.only(right: 3),
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF59E0B).withValues(alpha: 0.6),
+                        borderRadius: BorderRadius.circular(1),
                       ),
                     ),
                   ),
                 ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(8),
-              child: const _MockLines(
-                accentColor: Color(0xFF2C2C2C),
-                underline: true,
               ),
-            ),
+            ],
           ),
-        ],
-      ),
+        ),
+        const Expanded(
+          child: Padding(
+            padding: EdgeInsets.all(8),
+            child: _MockLines(accentColor: Color(0xFF1C1C1E), underline: true),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -518,36 +942,31 @@ class _ElegantThumb extends StatelessWidget {
   const _ElegantThumb();
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.all(10),
+    return Padding(
+      padding: const EdgeInsets.all(8),
       child: Column(
         children: [
-          // Corner decorations (just lines)
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(width: 16, height: 1.5, color: const Color(0xFF78350F)),
-              Container(width: 16, height: 1.5, color: const Color(0xFF78350F)),
+              Container(width: 14, height: 1.5, color: const Color(0xFF78350F)),
+              const Icon(Icons.auto_stories_rounded, color: Color(0xFF78350F), size: 12),
+              Container(width: 14, height: 1.5, color: const Color(0xFF78350F)),
             ],
           ),
-          const SizedBox(height: 6),
-          // Centered name
-          Center(
-            child: Container(
-              width: 65, height: 9,
-              decoration: BoxDecoration(
-                color: const Color(0xFF78350F).withValues(alpha: 0.8),
-                borderRadius: BorderRadius.circular(2),
-              ),
+          const SizedBox(height: 5),
+          Container(
+            width: 55,
+            height: 5,
+            decoration: BoxDecoration(
+              color: const Color(0xFF78350F),
+              borderRadius: BorderRadius.circular(1),
             ),
           ),
-          const SizedBox(height: 4),
-          Center(
-            child: Container(width: 50, height: 1, color: const Color(0xFF78350F)),
-          ),
-          const SizedBox(height: 8),
-          const Expanded(child: _MockLines(accentColor: Color(0xFF78350F))),
+          const SizedBox(height: 3),
+          Container(width: 35, height: 1, color: const Color(0xFF78350F).withValues(alpha: 0.5)),
+          const SizedBox(height: 6),
+          const Expanded(child: _MockLines(accentColor: Color(0xFF78350F), centered: true)),
         ],
       ),
     );
@@ -559,41 +978,31 @@ class _MedicalThumb extends StatelessWidget {
   const _MedicalThumb();
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: Colors.white,
-      child: Column(
-        children: [
-          // Green top bar
-          Container(height: 4, color: const Color(0xFF0D9488)),
-          // Light green header
-          Container(
-            height: 30,
-            color: const Color(0xFFF0FDF4),
-            padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
-            child: Row(
-              children: [
-                Container(
-                  width: 55, height: 8,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF0D9488),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(height: 1.5, color: const Color(0xFF0D9488)),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(8),
-              child: const _MockLines(
-                accentColor: Color(0xFF0D9488),
-                pillHeader: true,
+    return Column(
+      children: [
+        Container(
+          height: 28,
+          color: const Color(0xFF0D9488),
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Row(
+            children: [
+              const Icon(Icons.medical_services_rounded, color: Colors.white, size: 12),
+              const SizedBox(width: 5),
+              Container(
+                width: 48,
+                height: 4,
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(2)),
               ),
-            ),
+            ],
           ),
-        ],
-      ),
+        ),
+        const Expanded(
+          child: Padding(
+            padding: EdgeInsets.all(8),
+            child: _MockLines(accentColor: Color(0xFF0D9488), pillHeader: true),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -603,46 +1012,42 @@ class _InternationalThumb extends StatelessWidget {
   const _InternationalThumb();
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: Colors.white,
-      child: Column(
-        children: [
-          // Three-color flag bar
-          SizedBox(
-            height: 8,
-            child: Row(
-              children: [
-                Expanded(child: Container(color: const Color(0xFF0369A1))),
-                Expanded(child: Container(color: Colors.white)),
-                Expanded(child: Container(color: const Color(0xFFDC2626))),
-              ],
-            ),
+    return Column(
+      children: [
+        // Tri-color global ribbon
+        SizedBox(
+          height: 4,
+          child: Row(
+            children: [
+              Expanded(child: Container(color: const Color(0xFF0369A1))),
+              Expanded(child: Container(color: const Color(0xFFF59E0B))),
+              Expanded(child: Container(color: const Color(0xFFDC2626))),
+            ],
           ),
-          // Sky header
-          Container(
-            height: 28,
-            color: const Color(0xFFF0F9FF),
-            padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
-            child: Container(
-              width: 55, height: 9,
-              decoration: BoxDecoration(
-                color: const Color(0xFF0369A1),
-                borderRadius: BorderRadius.circular(2),
+        ),
+        Container(
+          height: 25,
+          color: const Color(0xFFF0F9FF),
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Row(
+            children: [
+              const Icon(Icons.public_rounded, color: Color(0xFF0369A1), size: 12),
+              const SizedBox(width: 5),
+              Container(
+                width: 45,
+                height: 4,
+                decoration: BoxDecoration(color: const Color(0xFF0369A1), borderRadius: BorderRadius.circular(1.5)),
               ),
-            ),
+            ],
           ),
-          Container(height: 1, color: const Color(0xFF0369A1)),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(8),
-              child: const _MockLines(
-                accentColor: Color(0xFF0369A1),
-                leftTick: true,
-              ),
-            ),
+        ),
+        const Expanded(
+          child: Padding(
+            padding: EdgeInsets.all(8),
+            child: _MockLines(accentColor: Color(0xFF0369A1), leftTick: true),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -652,71 +1057,50 @@ class _ScholarshipThumb extends StatelessWidget {
   const _ScholarshipThumb();
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: Colors.white,
-      child: Column(
-        children: [
-          // Gold top strip
-          Container(height: 3, color: const Color(0xFFD4A017)),
-          // Navy header
-          Container(
-            height: 38,
-            color: const Color(0xFF0D1B2A),
-            padding: const EdgeInsets.fromLTRB(8, 6, 8, 4),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 55, height: 8,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(1),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Container(
-                        width: 40, height: 5,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFD4A017),
-                          borderRadius: BorderRadius.circular(1),
-                        ),
-                      ),
-                    ],
+    return Column(
+      children: [
+        Container(
+          height: 32,
+          color: const Color(0xFF0B192C),
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Row(
+            children: [
+              const Icon(Icons.emoji_events_rounded, color: Color(0xFFF59E0B), size: 14),
+              const SizedBox(width: 6),
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 46,
+                    height: 4,
+                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(1.5)),
                   ),
-                ),
-                // Emblem circle
-                Container(
-                  width: 22, height: 22,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: const Color(0xFFD4A017), width: 1.5),
+                  const SizedBox(height: 2),
+                  Container(
+                    width: 28,
+                    height: 2.5,
+                    decoration: BoxDecoration(color: const Color(0xFFF59E0B), borderRadius: BorderRadius.circular(1)),
                   ),
-                ),
-              ],
-            ),
-          ),
-          // Gold bottom strip
-          Container(height: 2, color: const Color(0xFFD4A017)),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(8),
-              child: const _MockLines(
-                accentColor: Color(0xFFD4A017),
-                diamond: true,
+                ],
               ),
-            ),
+            ],
           ),
-        ],
-      ),
+        ),
+        Container(height: 2, color: const Color(0xFFF59E0B)),
+        const Expanded(
+          child: Padding(
+            padding: EdgeInsets.all(8),
+            child: _MockLines(accentColor: Color(0xFF0B192C), diamond: true),
+          ),
+        ),
+      ],
     );
   }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// _MockLines — configurable fake text line rows for thumbnails
+// _MockLines — proportional fake text line rows with clean fraction geometry
 // ═════════════════════════════════════════════════════════════════════════════
 
 class _MockLines extends StatelessWidget {
@@ -746,33 +1130,54 @@ class _MockLines extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final sections = [
-      (0.55, [0.9, 0.75]),
-      (0.45, [0.85, 0.65]),
-    ];
-
     return Column(
       crossAxisAlignment:
           centered ? CrossAxisAlignment.center : CrossAxisAlignment.start,
       children: [
-        for (int i = 0; i < sections.length; i++) ...[
-          _sectionHeader(sections[i].$1, i),
-          const SizedBox(height: 3),
-          for (final lineW in sections[i].$2) ...[
-            _line(lineW),
-            const SizedBox(height: 2),
-          ],
-          const SizedBox(height: 5),
-        ],
+        _sectionHeader(0.55, 0),
+        const SizedBox(height: 2.5),
+        _line(0.95),
+        const SizedBox(height: 2),
+        _line(0.80),
+        const SizedBox(height: 2),
+        _line(0.65),
+        const SizedBox(height: 4.5),
+        _sectionHeader(0.45, 1),
+        const SizedBox(height: 2.5),
+        _line(0.90),
+        const SizedBox(height: 2),
+        _line(0.75),
+        const SizedBox(height: 2),
+        _line(0.60),
+        const SizedBox(height: 4.5),
+        _sectionHeader(0.40, 2),
+        const SizedBox(height: 2.5),
+        _line(0.85),
+        const SizedBox(height: 2),
+        _line(0.50),
       ],
     );
   }
 
-  Widget _sectionHeader(double width, int index) {
+  Widget _line(double fraction) {
+    return FractionallySizedBox(
+      alignment: centered ? Alignment.center : Alignment.centerLeft,
+      widthFactor: fraction,
+      child: Container(
+        height: 3,
+        decoration: BoxDecoration(
+          color: const Color(0xFFCBD5E1),
+          borderRadius: BorderRadius.circular(1.5),
+        ),
+      ),
+    );
+  }
+
+  Widget _sectionHeader(double widthFactor, int index) {
     if (pillHeader) {
       return Container(
         width: double.infinity,
-        height: 8,
+        height: 7,
         decoration: BoxDecoration(
           color: accentColor.withValues(alpha: 0.12),
           border: Border.all(color: accentColor.withValues(alpha: 0.3), width: 0.5),
@@ -781,31 +1186,32 @@ class _MockLines extends StatelessWidget {
       );
     }
     return Row(
+      mainAxisAlignment: centered ? MainAxisAlignment.center : MainAxisAlignment.start,
       children: [
         if (dotPrefix)
           Container(
-            width: 4, height: 4,
-            margin: const EdgeInsets.only(right: 3, top: 1),
+            width: 3.5, height: 3.5,
+            margin: const EdgeInsets.only(right: 3),
             decoration: BoxDecoration(color: accentColor, shape: BoxShape.circle),
           ),
         if (numbered)
-          Text('${index + 1}.',
-              style: TextStyle(fontSize: 6, color: accentColor, fontWeight: FontWeight.bold)),
+          Text(
+            '${index + 1}.',
+            style: TextStyle(fontSize: 6, color: accentColor, fontWeight: FontWeight.bold),
+          ),
         if (leftPill)
           Container(
-            width: 3, height: 8,
+            width: 2.5, height: 7,
             margin: const EdgeInsets.only(right: 3),
             color: accentColor,
           ),
         if (brackets)
-          Text('[',
-              style: TextStyle(fontSize: 6, color: accentColor, fontWeight: FontWeight.bold)),
+          Text('[', style: TextStyle(fontSize: 6, color: accentColor, fontWeight: FontWeight.bold)),
         if (diamond)
-          Text('◆ ',
-              style: TextStyle(fontSize: 5, color: accentColor)),
+          Text('◆ ', style: TextStyle(fontSize: 5, color: accentColor)),
         if (leftTick)
           Container(
-            width: 2, height: 8,
+            width: 2, height: 7,
             margin: const EdgeInsets.only(right: 3),
             color: accentColor,
           ),
@@ -813,8 +1219,8 @@ class _MockLines extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              width: 80 * width,
-              height: 7,
+              width: 50 * widthFactor,
+              height: 5,
               decoration: BoxDecoration(
                 color: accentColor,
                 borderRadius: BorderRadius.circular(1.5),
@@ -823,7 +1229,7 @@ class _MockLines extends StatelessWidget {
             if (underline) ...[
               const SizedBox(height: 1),
               Container(
-                width: 80 * width,
+                width: 50 * widthFactor,
                 height: 0.75,
                 color: accentColor,
               ),
@@ -835,13 +1241,4 @@ class _MockLines extends StatelessWidget {
       ],
     );
   }
-
-  Widget _line(double width) => Container(
-        width: double.infinity * width,
-        height: 4,
-        decoration: BoxDecoration(
-          color: const Color(0xFFD1D5DB),
-          borderRadius: BorderRadius.circular(1),
-        ),
-      );
 }

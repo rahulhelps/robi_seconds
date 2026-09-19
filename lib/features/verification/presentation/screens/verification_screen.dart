@@ -203,10 +203,11 @@ class _VerificationScreenState extends State<VerificationScreen> {
                                                 // holds logical focus, then
                                                 // immediately request it back.
                                                 _otpFocusNode.unfocus();
-                                                Future.microtask(
-                                                  () => FocusScope.of(context)
-                                                      .requestFocus(_otpFocusNode),
-                                                );
+                                                Future.microtask(() {
+                                                  if (context.mounted) {
+                                                    FocusScope.of(context).requestFocus(_otpFocusNode);
+                                                  }
+                                                });
                                               },
                                               child: _buildPinField(),
                                             ),

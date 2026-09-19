@@ -1,6 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
-import 'package:flutter/services.dart';
 import '../../../../core/services/download_service.dart';
 
 abstract class DownloadEvent extends Equatable {
@@ -71,7 +71,7 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadState> {
       emit(DownloadSuccess(path));
 
     } catch (e) {
-      print("Download error: $e");
+      debugPrint("Download error: $e");
       emit(DownloadError('Failed to save file: ${e.toString()}'));
     }
   }

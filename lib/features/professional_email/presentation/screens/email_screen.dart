@@ -762,7 +762,7 @@ class _SectionHeader extends StatelessWidget {
             color: AppColors.textPrimary,
           ),
         ),
-        if (badge != null) badge!,
+        ?badge,
       ],
     );
   }

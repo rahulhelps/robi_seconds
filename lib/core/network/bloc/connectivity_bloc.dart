@@ -40,10 +40,9 @@ class ConnectivityBloc extends Bloc<ConnectivityEvent, ConnectivityState> {
     ConnectivityStatusChanged event,
     Emitter<ConnectivityState> emit,
   ) {
-    if (event.isConnected) {
-      emit(ConnectivityOnline());
-    } else {
-      emit(ConnectivityOffline());
+    final newState = event.isConnected ? ConnectivityOnline() : ConnectivityOffline();
+    if (newState != state) {
+      emit(newState);
     }
   }
 

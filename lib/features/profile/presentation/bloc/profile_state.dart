@@ -13,38 +13,66 @@ class ProfileLoading extends ProfileState {
 }
 
 class ProfileLoaded extends ProfileState {
+  final UserProfile profile;
   final List<String> cvHistory;
-  final int cvCount;
-  final String phoneNumber;
-  final bool isSubscriptionActive;
-  final int coverLetterCount;
   final List<String> coverLetterHistory;
-  final int sopCount;
   final List<String> sopHistory;
 
-  // ── Extended user fields ──────────────────────────────────────────────────
-  /// Email address — may be null/empty if not provided.
-  final String? email;
+  // Convenient getters for backward compatibility
+  int get cvCount => profile.cvCount;
+  String get phoneNumber => profile.phone;
+  bool get isSubscriptionActive => profile.isSubscriptionActive;
+  int get coverLetterCount => profile.coverLetterCount;
+  int get sopCount => profile.sopCount;
+  int get emailCount => profile.emailCount;
+  String? get email => profile.email.isNotEmpty ? profile.email : null;
+  String? get memberSince => profile.createdAt.isNotEmpty ? profile.createdAt : null;
+  String? get profileImageUrl => profile.avatarUrl.isNotEmpty ? profile.avatarUrl : null;
+  String? get name => profile.name.isNotEmpty ? profile.name : null;
+  String? get jobTitle => profile.jobTitle.isNotEmpty ? profile.jobTitle : null;
+  int get completionPercentage => profile.completionPercentage;
 
-  /// Raw `createdAt` string from the server (ISO-8601). Display layer formats it.
-  final String? memberSince;
+  ProfileLoaded({
+    UserProfile? profile,
+    List<String>? cvHistory,
+    int? cvCount,
+    String? phoneNumber,
+    bool? isSubscriptionActive,
+    int? coverLetterCount,
+    List<String>? coverLetterHistory,
+    int? sopCount,
+    List<String>? sopHistory,
+    String? email,
+    String? memberSince,
+    String? profileImageUrl,
+  })  : cvHistory = cvHistory ?? const [],
+        coverLetterHistory = coverLetterHistory ?? const [],
+        sopHistory = sopHistory ?? const [],
+        profile = profile ??
+            UserProfile(
+              phone: phoneNumber ?? '',
+              email: email ?? '',
+              cvCount: cvCount ?? 0,
+              coverLetterCount: coverLetterCount ?? 0,
+              sopCount: sopCount ?? 0,
+              isSubscriptionActive: isSubscriptionActive ?? false,
+              avatarUrl: profileImageUrl ?? '',
+              createdAt: memberSince ?? '',
+            );
 
-  /// URL to the user's profile image. Null means show a placeholder.
-  final String? profileImageUrl;
-
-  const ProfileLoaded({
-    required this.cvHistory,
-    required this.cvCount,
-    required this.phoneNumber,
-    required this.isSubscriptionActive,
-    required this.coverLetterCount,
-    required this.coverLetterHistory,
-    required this.sopCount,
-    required this.sopHistory,
-    this.email,
-    this.memberSince,
-    this.profileImageUrl,
-  });
+  ProfileLoaded copyWith({
+    UserProfile? profile,
+    List<String>? cvHistory,
+    List<String>? coverLetterHistory,
+    List<String>? sopHistory,
+  }) {
+    return ProfileLoaded(
+      profile: profile ?? this.profile,
+      cvHistory: cvHistory ?? this.cvHistory,
+      coverLetterHistory: coverLetterHistory ?? this.coverLetterHistory,
+      sopHistory: sopHistory ?? this.sopHistory,
+    );
+  }
 }
 
 class ProfileError extends ProfileState {
@@ -59,50 +87,32 @@ class ProfileSessionExpired extends ProfileState {
 // ── Avatar Upload States ────────────────────────────────────────────────────
 
 class UploadAvatarLoading extends ProfileLoaded {
-  UploadAvatarLoading(ProfileLoaded state) : super(
-    cvHistory: state.cvHistory,
-    cvCount: state.cvCount,
-    phoneNumber: state.phoneNumber,
-    isSubscriptionActive: state.isSubscriptionActive,
-    coverLetterCount: state.coverLetterCount,
-    coverLetterHistory: state.coverLetterHistory,
-    sopCount: state.sopCount,
-    sopHistory: state.sopHistory,
-    email: state.email,
-    memberSince: state.memberSince,
-    profileImageUrl: state.profileImageUrl,
-  );
+  UploadAvatarLoading(ProfileLoaded state)
+      : super(
+          profile: state.profile,
+          cvHistory: state.cvHistory,
+          coverLetterHistory: state.coverLetterHistory,
+          sopHistory: state.sopHistory,
+        );
 }
 
 class UploadAvatarSuccess extends ProfileLoaded {
-  UploadAvatarSuccess(ProfileLoaded state) : super(
-    cvHistory: state.cvHistory,
-    cvCount: state.cvCount,
-    phoneNumber: state.phoneNumber,
-    isSubscriptionActive: state.isSubscriptionActive,
-    coverLetterCount: state.coverLetterCount,
-    coverLetterHistory: state.coverLetterHistory,
-    sopCount: state.sopCount,
-    sopHistory: state.sopHistory,
-    email: state.email,
-    memberSince: state.memberSince,
-    profileImageUrl: state.profileImageUrl,
-  );
+  UploadAvatarSuccess(ProfileLoaded state)
+      : super(
+          profile: state.profile,
+          cvHistory: state.cvHistory,
+          coverLetterHistory: state.coverLetterHistory,
+          sopHistory: state.sopHistory,
+        );
 }
 
 class UploadAvatarFailure extends ProfileLoaded {
   final String error;
-  UploadAvatarFailure(ProfileLoaded state, this.error) : super(
-    cvHistory: state.cvHistory,
-    cvCount: state.cvCount,
-    phoneNumber: state.phoneNumber,
-    isSubscriptionActive: state.isSubscriptionActive,
-    coverLetterCount: state.coverLetterCount,
-    coverLetterHistory: state.coverLetterHistory,
-    sopCount: state.sopCount,
-    sopHistory: state.sopHistory,
-    email: state.email,
-    memberSince: state.memberSince,
-    profileImageUrl: state.profileImageUrl,
-  );
+  UploadAvatarFailure(ProfileLoaded state, this.error)
+      : super(
+          profile: state.profile,
+          cvHistory: state.cvHistory,
+          coverLetterHistory: state.coverLetterHistory,
+          sopHistory: state.sopHistory,
+        );
 }

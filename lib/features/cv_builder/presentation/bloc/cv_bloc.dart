@@ -1,8 +1,11 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:email_validator/email_validator.dart';
 import '../../domain/cv_model.dart';
 import '../../domain/cv_repository.dart';
 import '../../domain/cv_list_item.dart';
+import '../../domain/cv_validators.dart';
+import '../../../../core/services/backend_service.dart';
 
 // ── Events ───────────────────────────────────────────────────────────────────
 
@@ -15,9 +18,38 @@ class FetchCVs extends CvEvent {
   const FetchCVs();
 }
 
+/// Triggers DELETE /cvs/{id}.
+class DeleteCv extends CvEvent {
+  final String id;
+  const DeleteCv(this.id);
+}
+
 /// Triggers POST /cvs/generate.
 class GenerateCV extends CvEvent {
   const GenerateCV();
+}
+
+/// Triggers POST /cvs/ai-generate.
+class GenerateCvWithAi extends CvEvent {
+  final String jobTitle;
+  final String industry;
+  final String experienceLevel;
+  final int yearsOfExperience;
+  final List<String> keySkills;
+  final String educationLevel;
+  final String additionalDetails;
+  final String? templateId;
+
+  const GenerateCvWithAi({
+    required this.jobTitle,
+    required this.industry,
+    required this.experienceLevel,
+    required this.yearsOfExperience,
+    required this.keySkills,
+    required this.educationLevel,
+    required this.additionalDetails,
+    this.templateId,
+  });
 }
 
 // ── Form Events (Migrated from CvBuilderBloc) ────────────────────────────────
@@ -108,6 +140,11 @@ class CvUpdateLanguage extends CvEvent {
   const CvUpdateLanguage(this.index, this.field, this.value);
 }
 
+class CvLoadModel extends CvEvent {
+  final CvModel model;
+  const CvLoadModel(this.model);
+}
+
 // ── States ───────────────────────────────────────────────────────────────────
 
 abstract class CvState {
@@ -182,7 +219,9 @@ class CvBloc extends Bloc<CvEvent, CvState> {
         ) {
     // API Events
     on<FetchCVs>(_onFetchCVs);
+    on<DeleteCv>(_onDeleteCv);
     on<GenerateCV>(_onGenerateCV);
+    on<GenerateCvWithAi>(_onGenerateCvWithAi);
 
     // Form Events
     on<CvSetTemplateId>((e, emit) => emit(CvInitial(state.model.copyWith(templateId: e.templateId), showErrors: state.showErrors)));
@@ -201,6 +240,7 @@ class CvBloc extends Bloc<CvEvent, CvState> {
     on<CvAddLanguage>(_onAddLanguage);
     on<CvRemoveLanguage>(_onRemoveLanguage);
     on<CvUpdateLanguage>(_onUpdateLanguage);
+    on<CvLoadModel>((e, emit) => emit(CvInitial(e.model, showErrors: false)));
   }
 
   // ── API Handlers ──────────────────────────────────────────────────────────
@@ -209,12 +249,24 @@ class CvBloc extends Bloc<CvEvent, CvState> {
     emit(CvLoading(state.model));
     try {
       final items = await _repository.fetchCvList();
-      // Always fetch token so the PDF viewer can authenticate
       final token = await _repository.getAccessToken() ?? '';
-      print('[CVBloc] Token for PDF viewer: $token');
+      debugPrint('[CVBloc] Token for PDF viewer: $token');
       emit(CvLoaded(state.model, items, token: token));
     } catch (err) {
-      print('[CVBloc] Fetch error: $err');
+      debugPrint('[CVBloc] Fetch error: $err');
+      emit(CvError(state.model, _friendlyError(err.toString())));
+    }
+  }
+
+  Future<void> _onDeleteCv(DeleteCv e, Emitter<CvState> emit) async {
+    emit(CvLoading(state.model));
+    try {
+      await _repository.deleteCv(e.id);
+      final items = await _repository.fetchCvList();
+      final token = await _repository.getAccessToken() ?? '';
+      emit(CvLoaded(state.model, items, token: token));
+    } catch (err) {
+      debugPrint('[CVBloc] Delete error: $err');
       emit(CvError(state.model, _friendlyError(err.toString())));
     }
   }
@@ -236,13 +288,47 @@ class CvBloc extends Bloc<CvEvent, CvState> {
       final cvId = await _repository.generateCv(sanitised);
       final token = await _repository.getAccessToken() ?? '';
       
+      // Upload CV snapshot for backup to Laravel Backend
+      BackendService().uploadCvSnapshot(sanitised.toJson()).then((success) {
+        if (success) {
+          debugPrint('[CVBloc] Successfully backed up CV snapshot to backend.');
+        } else {
+          debugPrint('[CVBloc] Failed to back up CV snapshot.');
+        }
+      });
+      
       // Immediately refresh the list after successful generation
       final items = await _repository.fetchCvList();
       
       emit(CvLoaded(model, items, cvId: cvId, token: token));
     } catch (err) {
-      print('[CVBloc] Generation error: $err');
+      debugPrint('[CVBloc] Generation error: $err');
       emit(CvError(model, _friendlyError(err.toString())));
+    }
+  }
+
+  Future<void> _onGenerateCvWithAi(GenerateCvWithAi e, Emitter<CvState> emit) async {
+    emit(CvLoading(state.model));
+    try {
+      final result = await _repository.generateCvWithAi(
+        jobTitle: e.jobTitle,
+        industry: e.industry,
+        experienceLevel: e.experienceLevel,
+        yearsOfExperience: e.yearsOfExperience,
+        keySkills: e.keySkills,
+        educationLevel: e.educationLevel,
+        additionalDetails: e.additionalDetails,
+        templateId: e.templateId,
+      );
+
+      final cvId = result['cvId'] as String;
+      final token = await _repository.getAccessToken() ?? '';
+      final items = await _repository.fetchCvList();
+
+      emit(CvLoaded(state.model, items, cvId: cvId, token: token));
+    } catch (err) {
+      debugPrint('[CVBloc] AI generation error: $err');
+      emit(CvError(state.model, _friendlyError(err.toString())));
     }
   }
 
@@ -293,7 +379,10 @@ class CvBloc extends Bloc<CvEvent, CvState> {
       'degree' => item.copyWith(degree: e.value),
       'fieldOfStudy' => item.copyWith(fieldOfStudy: e.value),
       'startDate' => item.copyWith(startDate: e.value),
-      'endDate' => item.copyWith(endDate: e.value),
+      'endDate' => item.copyWith(endDate: e.value, passingYear: e.value),
+      'board' => item.copyWith(board: e.value),
+      'passingYear' => item.copyWith(passingYear: e.value, endDate: e.value),
+      'result' => item.copyWith(result: e.value),
       _ => item,
     };
     emit(CvInitial(state.model.copyWith(education: list), showErrors: state.showErrors));
@@ -369,42 +458,48 @@ class CvBloc extends Bloc<CvEvent, CvState> {
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   String? _validate(CvModel cv) {
-    bool hasMissing = false;
+    final missing = <String>[];
 
-    if (cv.templateId.trim().isEmpty) hasMissing = true;
-    if (cv.careerObjective.trim().isEmpty) hasMissing = true;
+    if (cv.templateId.trim().isEmpty) missing.add('Template');
+    if (cv.careerObjective.trim().isEmpty) missing.add('Career Objective');
+    if (cv.personalInfo.name.trim().isEmpty) missing.add('Full Name');
 
-    // Personal Info
-    if (cv.personalInfo.name.trim().isEmpty) hasMissing = true;
-
-    // Email: must be non-empty AND a valid format
     final email = cv.personalInfo.email.trim();
     if (email.isEmpty) {
-      hasMissing = true;
+      missing.add('Email');
     } else if (!EmailValidator.validate(email)) {
       return 'Please enter a valid email address (e.g. name@example.com)';
     }
 
-    if (cv.personalInfo.phone.trim().isEmpty) hasMissing = true;
+    final phone = cv.personalInfo.phone.trim();
+    if (phone.isEmpty) {
+      missing.add('Phone Number');
+    } else if (!CvValidators.isValidPhone(phone)) {
+      return 'Please enter a valid phone number (e.g. +880 17XXXXXXXX)';
+    }
 
-    // Education
-    if (cv.education.isEmpty) hasMissing = true;
-    for (var edu in cv.education) {
-      if (edu.institution.trim().isEmpty || edu.degree.trim().isEmpty) {
-        hasMissing = true;
+    if (cv.education.isEmpty) {
+      missing.add('Education (at least 1 entry)');
+    } else {
+      for (var edu in cv.education) {
+        if (edu.degree.trim().isEmpty) missing.add('Education Level');
+        if (edu.institution.trim().isEmpty) missing.add('Education Institution');
+        if (edu.board.trim().isEmpty) missing.add('Education Board');
+        if (edu.endDate.trim().isEmpty && edu.passingYear.trim().isEmpty) missing.add('Passing Year');
       }
     }
 
-    // Skills
-    if (cv.skills.isEmpty) hasMissing = true;
-    for (var skill in cv.skills) {
-      if (skill.category.trim().isEmpty || skill.skills.isEmpty) {
-        hasMissing = true;
+    if (cv.skills.isEmpty) {
+      missing.add('Skills');
+    } else {
+      for (var skill in cv.skills) {
+        if (skill.category.trim().isEmpty) missing.add('Skill Category');
+        if (skill.skills.isEmpty) missing.add('Skill Items');
       }
     }
 
-    if (hasMissing) return 'Please fill all required fields';
-    return null;
+    if (missing.isEmpty) return null;
+    return 'Missing: ${missing.join(', ')}';
   }
 
   CvModel _sanitise(CvModel cv) {
@@ -431,7 +526,10 @@ class CvBloc extends Bloc<CvEvent, CvState> {
         degree: e.degree.trim(),
         fieldOfStudy: e.fieldOfStudy.trim(),
         startDate: e.startDate.trim(),
-        endDate: e.endDate.trim(),
+        endDate: e.endDate.trim().isNotEmpty ? e.endDate.trim() : e.passingYear.trim(),
+        board: e.board.trim(),
+        passingYear: e.passingYear.trim().isNotEmpty ? e.passingYear.trim() : e.endDate.trim(),
+        result: e.result.trim(),
       )).toList(),
       skills: cv.skills.map((s) => s.copyWith(
         category: s.category.trim(),

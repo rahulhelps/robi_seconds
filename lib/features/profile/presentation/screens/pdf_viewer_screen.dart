@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
+import '../../../../core/constants.dart';
 
 class PDFViewerScreen extends StatefulWidget {
   final String pdfPath;
@@ -15,7 +16,7 @@ class PDFViewerScreen extends StatefulWidget {
 }
 
 class _PDFViewerScreenState extends State<PDFViewerScreen> {
-  final String baseUrl = 'http://10.0.2.2:5000';
+  final String baseUrl = ApiConstants.baseUrl;
   bool _isDownloading = false;
 
   String get fullUrl => widget.pdfPath.startsWith('http') 

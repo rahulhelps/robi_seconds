@@ -10,6 +10,7 @@ abstract final class DashboardNavIndex {
   static const int profile = 1;
   static const int services = 2;
   static const int payments = 3;
+  static const int mockTest = 4;
 }
 
 class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {

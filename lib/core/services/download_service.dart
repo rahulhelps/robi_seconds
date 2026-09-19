@@ -1,7 +1,5 @@
 import 'dart:io';
-import 'dart:typed_data';
-import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
 import 'auth_service.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:device_info_plus/device_info_plus.dart';
@@ -80,12 +78,16 @@ class DownloadService {
 
       // 4. Save file
       await file.writeAsBytes(bytes, flush: true);
-      print("File successfully saved at: ${file.path}");
+      if (kDebugMode) {
+        print("File successfully saved at: ${file.path}");
+      }
 
       return file.path;
 
     } catch (e) {
-      print("DownloadService Error: $e");
+      if (kDebugMode) {
+        print("DownloadService Error: $e");
+      }
       rethrow;
     }
   }

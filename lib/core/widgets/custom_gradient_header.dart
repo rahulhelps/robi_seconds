@@ -9,6 +9,7 @@ class CustomGradientHeader extends StatelessWidget {
   final VoidCallback? onBackPressed;
   final bool disableTopPadding;
   final bool showBackButton;
+  final Widget? trailing;
 
   const CustomGradientHeader({
     super.key,
@@ -18,6 +19,7 @@ class CustomGradientHeader extends StatelessWidget {
     this.onBackPressed,
     this.disableTopPadding = false,
     this.showBackButton = true,
+    this.trailing,
   });
 
   @override
@@ -41,6 +43,10 @@ class CustomGradientHeader extends StatelessWidget {
               else
                 const SizedBox(width: 16, height: 48),
               const Spacer(),
+              if (trailing != null) ...[
+                trailing!,
+                const SizedBox(width: 8),
+              ],
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
