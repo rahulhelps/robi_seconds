@@ -5,7 +5,6 @@ import 'package:http_parser/http_parser.dart';
 import '../constants.dart';
 import '../storage/token_manager.dart';
 import '../storage/user_storage.dart';
-import 'backend_service.dart';
 
 /// Base URL for all API calls — single source of truth in [ApiConstants].
   String get _baseUrl => ApiConstants.baseUrl;
@@ -133,10 +132,6 @@ class AuthService {
     final refreshed = await refreshToken();
     if (refreshed) return;
 
-    // Fallback: auto-register device to ensure backend requests continue
-    final registered = await BackendService().registerDevice();
-    if (registered) return;
-
     final stillHasSession =
         (await TokenManager.getRefreshToken())?.isNotEmpty ?? false;
     if (stillHasSession) {
@@ -260,22 +255,10 @@ class AuthService {
     return TokenManager.getAccessToken();
   }
 
-  /// Ensures a valid token exists by auto-registering the device if needed.
-  static Future<String?> _getValidTokenOrRegister() async {
-    var token = await TokenManager.getAccessToken();
-    if (token == null || token.isEmpty) {
-      final registered = await BackendService().registerDevice();
-      if (registered) {
-        token = await TokenManager.getAccessToken();
-      }
-    }
-    return token;
-  }
-
   // ── Private helpers ───────────────────────────────────────────────────────
 
   static Future<Map<String, dynamic>> _doGet(String path) async {
-    final token = await _getValidTokenOrRegister();
+    final token = await TokenManager.getAccessToken();
     final uri = Uri.parse('$_baseUrl$path');
     final response = await http.get(
       uri,
@@ -293,7 +276,7 @@ class AuthService {
     String path,
     Map<String, dynamic> body,
   ) async {
-    final token = await _getValidTokenOrRegister();
+    final token = await TokenManager.getAccessToken();
     final uri = Uri.parse('$_baseUrl$path');
 
     final response = await http
@@ -315,7 +298,7 @@ class AuthService {
     String path,
     Map<String, dynamic> body,
   ) async {
-    final token = await _getValidTokenOrRegister();
+    final token = await TokenManager.getAccessToken();
     final uri = Uri.parse('$_baseUrl$path');
 
     final response = await http
@@ -337,7 +320,7 @@ class AuthService {
     String path,
     Map<String, dynamic> body,
   ) async {
-    final token = await _getValidTokenOrRegister();
+    final token = await TokenManager.getAccessToken();
     final uri = Uri.parse('$_baseUrl$path');
 
     final request = http.Request('PATCH', uri)
@@ -355,7 +338,7 @@ class AuthService {
   }
 
   static Future<Map<String, dynamic>> _doDelete(String path) async {
-    final token = await _getValidTokenOrRegister();
+    final token = await TokenManager.getAccessToken();
     final uri = Uri.parse('$_baseUrl$path');
 
     final response = await http.delete(

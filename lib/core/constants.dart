@@ -6,7 +6,7 @@ class ApiConstants {
     final fromEnv = const String.fromEnvironment('API_BASE_URL');
     if (fromEnv.isNotEmpty) return fromEnv;
 
-    return 'https://cvbuilder.kidsgrow.com.bd/api/v1';
+    return 'https://apiv2.thinkfastbd.com/api/v1';
   }
 }
 

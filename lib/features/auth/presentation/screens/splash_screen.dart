@@ -163,9 +163,19 @@ class _SplashScreenState extends State<SplashScreen>
         } else if (state is AuthEmailRequired) {
           Navigator.pushReplacementNamed(context, '/email_registration');
         } else if (state is AuthSubscriptionExpired) {
-          Navigator.pushReplacementNamed(context, '/subscription_expired');
+          Navigator.pushReplacementNamed(
+            context,
+            '/subscription_expired',
+            arguments: {'phone': state.phone},
+          );
         } else if (state is AuthSubscriptionPending) {
-          Navigator.pushReplacementNamed(context, '/subscription_pending');
+          Navigator.pushReplacementNamed(
+            context,
+            '/subscription_pending',
+            arguments: {'phone': state.phone},
+          );
+        } else if (state is AuthUnauthenticated) {
+          Navigator.pushReplacementNamed(context, '/auth');
         }
       },
       child: AnnotatedRegion<SystemUiOverlayStyle>(
