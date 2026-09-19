@@ -147,15 +147,20 @@ class BDAppsService {
       if (body['success'] == true && data != null) {
         final accessToken = data['accessToken'] as String?;
         final refreshToken = data['refreshToken'] as String?;
-        if (accessToken != null && refreshToken != null) {
+        // A verified OTP must come with a session; never treat a bare
+        // `success: true` (no tokens) as a successful login.
+        if (accessToken != null &&
+            accessToken.isNotEmpty &&
+            refreshToken != null &&
+            refreshToken.isNotEmpty) {
           await TokenManager.saveTokens(
             accessToken,
             refreshToken,
           );
+          final user = data['user'] as Map<String, dynamic>?;
+          if (user != null) await UserStorage.saveUser(user);
+          return const BDAppsVerifyResult(success: true);
         }
-        final user = data['user'] as Map<String, dynamic>?;
-        if (user != null) await UserStorage.saveUser(user);
-        return const BDAppsVerifyResult(success: true);
       }
 
       return BDAppsVerifyResult(

@@ -9,7 +9,6 @@ import '../../../auth/presentation/bloc/language_bloc.dart';
 import '../../../../core/utils/auth_strings.dart';
 import '../../../auth/presentation/widgets/auth_top_bar.dart';
 import '../../../auth/presentation/widgets/primary_gradient_button.dart';
-import '../bloc/verification_bloc.dart';
 
 class VerificationScreen extends StatefulWidget {
   const VerificationScreen({super.key});
@@ -48,10 +47,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
     final referenceNo = args?['referenceNo'] as String? ?? '';
     final phone = args?['phone'] as String? ?? '';
 
-    return BlocProvider(
-      create: (_) => VerificationBloc(),
-      // Outer listener: AuthBloc handles real OTP verification result.
-      child: BlocListener<AuthBloc, AuthState>(
+    return BlocListener<AuthBloc, AuthState>(
         listener: (context, state) {
           if (state is AuthAuthenticated) {
             Navigator.pushNamedAndRemoveUntil(
@@ -301,7 +297,6 @@ class _VerificationScreenState extends State<VerificationScreen> {
             );
           },
         ),
-      ),
     );
   }
 

@@ -241,7 +241,12 @@ class _PhoneInputCardState extends State<PhoneInputCard> {
                               }
                               
                               // Use existing stored status
-                             final isRegistered = await UserStorage.getSubscriptionStatus();
+                             // Skip OTP only for the same number this device
+                             // already verified; any other number needs an OTP.
+                             final storedPhone = await UserStorage.getPhone();
+                             final isRegistered =
+                                 await UserStorage.getSubscriptionStatus() &&
+                                     storedPhone == localNumber;
                              if (!context.mounted) return;
                               
                               if (isRegistered) {
