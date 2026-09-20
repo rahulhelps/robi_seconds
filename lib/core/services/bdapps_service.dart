@@ -5,8 +5,8 @@ import '../constants.dart';
 import '../storage/token_manager.dart';
 import '../storage/user_storage.dart';
 import 'auth_service.dart';
+import 'backend_service.dart';
 
-String get _baseUrl => ApiConstants.baseUrl;
 
 // ── Result models ─────────────────────────────────────────────────────────────
 
@@ -73,7 +73,7 @@ class BDAppsService {
 
   static Future<BDAppsOtpResult> sendOtp(String phone) async {
     try {
-      final uri = Uri.parse('$_baseUrl/auth/otp/send');
+      final uri = Uri.parse(ApiConstants.urlFor('/auth/otp/send'));
       final response = await http
           .post(
             uri,
@@ -128,7 +128,7 @@ class BDAppsService {
     String phone,
   ) async {
     try {
-      final uri = Uri.parse('$_baseUrl/auth/otp/verify');
+      final uri = Uri.parse(ApiConstants.urlFor('/auth/otp/verify'));
       final response = await http
           .post(
             uri,
@@ -153,12 +153,14 @@ class BDAppsService {
             accessToken.isNotEmpty &&
             refreshToken != null &&
             refreshToken.isNotEmpty) {
-          await TokenManager.saveTokens(
+          await TokenManager.saveAuthTokens(
             accessToken,
             refreshToken,
           );
           final user = data['user'] as Map<String, dynamic>?;
           if (user != null) await UserStorage.saveUser(user);
+          // Best effort: obtain the main-backend (documents, CV, mock test) token.
+          await BackendService().registerDevice();
           return const BDAppsVerifyResult(success: true);
         }
       }

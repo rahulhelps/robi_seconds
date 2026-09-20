@@ -823,11 +823,15 @@ class _ProfileHeaderCard extends StatelessWidget {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(
-                          'Complete your profile for better AI CV recommendations',
-                          style: GoogleFonts.inter(
-                            fontSize: 11,
-                            color: Colors.white70,
+                        Flexible(
+                          child: Text(
+                            'Complete your profile for better AI CV recommendations',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              color: Colors.white70,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 4),

@@ -26,7 +26,7 @@ class AuthRepository {
 
   /// Checks if a valid access token exists (used for persistent session).
   Future<bool> isLoggedIn() async {
-    final token = await TokenManager.getAccessToken();
+    final token = await TokenManager.getAuthAccessToken();
     return token != null && token.isNotEmpty;
   }
 

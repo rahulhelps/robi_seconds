@@ -213,12 +213,16 @@ class ActionCards extends StatelessWidget {
                       children: [
                         Row(
                           children: [
-                            Text(
-                              'Exam Results & Admit Cards',
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.w800,
-                                color: const Color(0xFF0F172A),
+                            Flexible(
+                              child: Text(
+                                'Exam Results & Admit Cards',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: const Color(0xFF0F172A),
+                                ),
                               ),
                             ),
                             const SizedBox(width: 6),

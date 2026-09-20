@@ -30,7 +30,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     Emitter<AuthState> emit,
   ) async {
     try {
-      final token = await TokenManager.getToken();
+      final token = await TokenManager.getAuthAccessToken();
       if (token != null && token.isNotEmpty) {
         final user = await AuthService.getCurrentUser();
         emit(AuthAuthenticated(user));
@@ -85,7 +85,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     LoginSuccess event,
     Emitter<AuthState> emit,
   ) async {
-    await TokenManager.saveAccessToken(event.token);
+    await TokenManager.saveAuthAccessToken(event.token);
     final user = await AuthService.getCurrentUser();
     emit(AuthAuthenticated(user));
   }

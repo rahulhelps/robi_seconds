@@ -121,7 +121,7 @@ class _SplashScreenState extends State<SplashScreen>
     await Future.delayed(const Duration(milliseconds: 1800));
     if (!mounted) return;
 
-    final accessToken = await TokenManager.getAccessToken();
+    final accessToken = await TokenManager.getAuthAccessToken();
     if (!mounted) return;
 
     if (accessToken != null && accessToken.isNotEmpty) {
