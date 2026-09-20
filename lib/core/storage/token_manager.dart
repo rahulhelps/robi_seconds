@@ -13,6 +13,11 @@ class TokenManager {
 
   static const String _accessTokenKey = 'access_token';
   static const String _refreshTokenKey = 'refresh_token';
+
+  // bdapps (apiv2) session tokens. Kept apart from the main-backend token above
+  // so the two servers never overwrite each other's token.
+  static const String _authAccessKey = 'auth_access_token';
+  static const String _authRefreshKey = 'auth_refresh_token';
   static String? _cachedAccessToken;
 
   static Future<String?> getAccessToken() async {
@@ -53,6 +58,8 @@ class TokenManager {
   }
 
   static Future<void> clearTokens() async {
+    await _storage.delete(key: _authAccessKey);
+    await _storage.delete(key: _authRefreshKey);
     _cachedAccessToken = null;
     await _storage.delete(key: _accessTokenKey);
     await _storage.delete(key: _refreshTokenKey);
@@ -73,4 +80,24 @@ class TokenManager {
   }
 
   static String? get cachedAccessToken => _cachedAccessToken;
+
+  // ── bdapps (apiv2) session ───────────────────────────────────────────────
+
+  static Future<String?> getAuthAccessToken() =>
+      _storage.read(key: _authAccessKey);
+
+  static Future<String?> getAuthRefreshToken() =>
+      _storage.read(key: _authRefreshKey);
+
+  static Future<void> saveAuthTokens(
+      String accessToken, String refreshToken) async {
+    await _storage.write(key: _authAccessKey, value: accessToken);
+    await _storage.write(key: _authRefreshKey, value: refreshToken);
+  }
+
+  static Future<void> saveAuthAccessToken(String token) =>
+      _storage.write(key: _authAccessKey, value: token);
+
+  static Future<void> saveAuthRefreshToken(String token) =>
+      _storage.write(key: _authRefreshKey, value: token);
 }

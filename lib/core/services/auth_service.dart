@@ -5,9 +5,9 @@ import 'package:http_parser/http_parser.dart';
 import '../constants.dart';
 import '../storage/token_manager.dart';
 import '../storage/user_storage.dart';
+import 'backend_service.dart';
 
 /// Base URL for all API calls — single source of truth in [ApiConstants].
-  String get _baseUrl => ApiConstants.baseUrl;
 
 /// AuthService handles all authentication-related HTTP calls using the `http`
 /// package. It also manages automatic token refresh on 401 responses.
@@ -22,7 +22,7 @@ class AuthService {
   ///
   /// Throws a [String] error message on failure.
   static Future<Map<String, dynamic>> loginWithPhone(String phoneNumber) async {
-    final uri = Uri.parse('$_baseUrl/auth/phone-auth');
+    final uri = Uri.parse(ApiConstants.urlFor('/auth/phone-auth'));
 
     final response = await http
         .post(
@@ -56,7 +56,7 @@ class AuthService {
       throw 'Invalid server response: tokens missing inside "data".';
     }
 
-    await TokenManager.saveTokens(
+    await TokenManager.saveAuthTokens(
       accessToken,
       refreshToken,
     );
@@ -66,6 +66,9 @@ class AuthService {
     if (user != null) {
       await UserStorage.saveUser(user);
     }
+
+    // Best effort: obtain the main-backend (documents, CV, mock test) token.
+    await BackendService().registerDevice();
 
     return payload;
   }
@@ -81,14 +84,14 @@ class AuthService {
   }
 
   static Future<bool> _performRefresh() async {
-    final storedRefreshToken = await TokenManager.getRefreshToken();
+    final storedRefreshToken = await TokenManager.getAuthRefreshToken();
     if (storedRefreshToken == null || storedRefreshToken.isEmpty) {
       await logout();
       return false;
     }
 
     try {
-      final uri = Uri.parse('$_baseUrl/auth/refresh');
+      final uri = Uri.parse(ApiConstants.urlFor('/auth/refresh'));
       final response = await http
           .post(
             uri,
@@ -104,9 +107,9 @@ class AuthService {
         final newRefreshToken = payload['refreshToken'] as String?;
 
         if (newToken != null && newToken.isNotEmpty) {
-          await TokenManager.saveAccessToken(newToken);
+          await TokenManager.saveAuthAccessToken(newToken);
           if (newRefreshToken != null && newRefreshToken.isNotEmpty) {
-            await TokenManager.saveRefreshToken(newRefreshToken);
+            await TokenManager.saveAuthRefreshToken(newRefreshToken);
           }
           return true;
         }
@@ -133,11 +136,35 @@ class AuthService {
     if (refreshed) return;
 
     final stillHasSession =
-        (await TokenManager.getRefreshToken())?.isNotEmpty ?? false;
+        (await TokenManager.getAuthRefreshToken())?.isNotEmpty ?? false;
     if (stillHasSession) {
       throw 'Could not reach the server. Please check your connection and try again.';
     }
     throw 'Session expired. Please log in again.';
+  }
+
+  static bool _isAuthPath(String path) => path.startsWith('/auth/');
+
+  /// Bearer token for [path]: the bdapps session token for `/auth/*` calls,
+  /// the main-backend (device) token for everything else. The main-backend
+  /// token is created on demand if it does not exist yet.
+  static Future<String?> _tokenFor(String path) async {
+    if (_isAuthPath(path)) return TokenManager.getAuthAccessToken();
+    var token = await TokenManager.getAccessToken();
+    if (token == null || token.isEmpty) {
+      if (await BackendService().registerDevice()) {
+        token = await TokenManager.getAccessToken();
+      }
+    }
+    return token;
+  }
+
+  /// Called after a 401 on [path] so the retry can succeed: refresh the bdapps
+  /// session for `/auth/*`, or re-register the device for the main backend.
+  static Future<void> _recoverFor(String path) async {
+    if (_isAuthPath(path)) return _ensureFreshTokenOrThrow();
+    if (await BackendService().registerDevice()) return;
+    throw 'Could not reach the server. Please check your connection and try again.';
   }
 
   // ── Authenticated GET helper ──────────────────────────────────────────────
@@ -147,7 +174,7 @@ class AuthService {
   static Future<Map<String, dynamic>> authenticatedGet(String path) async {
     final result = await _doGet(path);
     if (result['__status'] == 401) {
-      await _ensureFreshTokenOrThrow();
+      await _recoverFor(path);
       return _doGet(path);
     }
     return result;
@@ -161,7 +188,7 @@ class AuthService {
   ) async {
     final result = await _doPost(path, body);
     if (result['__status'] == 401) {
-      await _ensureFreshTokenOrThrow();
+      await _recoverFor(path);
       return _doPost(path, body);
     }
     return result;
@@ -175,7 +202,7 @@ class AuthService {
   ) async {
     final result = await _doPut(path, body);
     if (result['__status'] == 401) {
-      await _ensureFreshTokenOrThrow();
+      await _recoverFor(path);
       return _doPut(path, body);
     }
     return result;
@@ -189,7 +216,7 @@ class AuthService {
   ) async {
     final result = await _doPatch(path, body);
     if (result['__status'] == 401) {
-      await _ensureFreshTokenOrThrow();
+      await _recoverFor(path);
       return _doPatch(path, body);
     }
     return result;
@@ -200,7 +227,7 @@ class AuthService {
   static Future<Map<String, dynamic>> authenticatedDelete(String path) async {
     final result = await _doDelete(path);
     if (result['__status'] == 401) {
-      await _ensureFreshTokenOrThrow();
+      await _recoverFor(path);
       return _doDelete(path);
     }
     return result;
@@ -221,7 +248,7 @@ class AuthService {
   /// Makes an authenticated GET request to [path] and returns the raw response.
   /// Useful for binary downloads. Automatically retries once on 401.
   static Future<http.Response> authenticatedGetRaw(String url) async {
-    final token = await TokenManager.getAccessToken();
+    final token = await _tokenFor('/raw');
     var response = await http.get(
       Uri.parse(url),
       headers: {
@@ -230,9 +257,9 @@ class AuthService {
     ).timeout(const Duration(seconds: 30));
 
     if (response.statusCode == 401) {
-      await _ensureFreshTokenOrThrow();
+      await _recoverFor('/raw');
       
-      final newToken = await TokenManager.getAccessToken();
+      final newToken = await _tokenFor('/raw');
       response = await http.get(
         Uri.parse(url),
         headers: {
@@ -258,8 +285,8 @@ class AuthService {
   // ── Private helpers ───────────────────────────────────────────────────────
 
   static Future<Map<String, dynamic>> _doGet(String path) async {
-    final token = await TokenManager.getAccessToken();
-    final uri = Uri.parse('$_baseUrl$path');
+    final token = await _tokenFor(path);
+    final uri = Uri.parse(ApiConstants.urlFor(path));
     final response = await http.get(
       uri,
       headers: {
@@ -276,8 +303,8 @@ class AuthService {
     String path,
     Map<String, dynamic> body,
   ) async {
-    final token = await TokenManager.getAccessToken();
-    final uri = Uri.parse('$_baseUrl$path');
+    final token = await _tokenFor(path);
+    final uri = Uri.parse(ApiConstants.urlFor(path));
 
     final response = await http
         .post(
@@ -298,8 +325,8 @@ class AuthService {
     String path,
     Map<String, dynamic> body,
   ) async {
-    final token = await TokenManager.getAccessToken();
-    final uri = Uri.parse('$_baseUrl$path');
+    final token = await _tokenFor(path);
+    final uri = Uri.parse(ApiConstants.urlFor(path));
 
     final response = await http
         .put(
@@ -320,8 +347,8 @@ class AuthService {
     String path,
     Map<String, dynamic> body,
   ) async {
-    final token = await TokenManager.getAccessToken();
-    final uri = Uri.parse('$_baseUrl$path');
+    final token = await _tokenFor(path);
+    final uri = Uri.parse(ApiConstants.urlFor(path));
 
     final request = http.Request('PATCH', uri)
       ..headers.addAll({
@@ -338,8 +365,8 @@ class AuthService {
   }
 
   static Future<Map<String, dynamic>> _doDelete(String path) async {
-    final token = await TokenManager.getAccessToken();
-    final uri = Uri.parse('$_baseUrl$path');
+    final token = await _tokenFor(path);
+    final uri = Uri.parse(ApiConstants.urlFor(path));
 
     final response = await http.delete(
       uri,
@@ -357,10 +384,10 @@ class AuthService {
 
   /// Uploads an avatar image to /upload/avatar using multipart/form-data.
   static Future<Map<String, dynamic>> uploadAvatar(String filePath, String fileName, String mimeType) async {
-    final token = await TokenManager.getAccessToken();
+    final token = await _tokenFor('/upload/avatar');
     if (token == null) throw 'Not authenticated';
 
-    final uri = Uri.parse('$_baseUrl/upload/avatar');
+    final uri = Uri.parse(ApiConstants.urlFor('/upload/avatar'));
     final request = http.MultipartRequest('POST', uri)
       ..headers['Authorization'] = 'Bearer $token';
 
@@ -380,7 +407,7 @@ class AuthService {
     final response = await http.Response.fromStream(streamedResponse);
 
     if (response.statusCode == 401) {
-      await _ensureFreshTokenOrThrow();
+      await _recoverFor('/upload/avatar');
       // Retry once
       return uploadAvatar(filePath, fileName, mimeType);
     }

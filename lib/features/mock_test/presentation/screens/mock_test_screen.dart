@@ -80,11 +80,6 @@ class _MockTestViewState extends State<_MockTestView> {
                     children: [
                       Row(
                         children: [
-                          IconButton(
-                            icon: const Icon(Icons.arrow_back_rounded),
-                            onPressed: () => Navigator.pop(context),
-                          ),
-                          const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               'AI Mock Test',
